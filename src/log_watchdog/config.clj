@@ -1,7 +1,17 @@
 (ns log-watchdog.config
-  (:require [log-watchdog.core :as core])
+  (:require [log-watchdog.core :as core]
+            [clojure.edn :as edn])
   (:gen-class))
 
-; TODO not hard-coded, move to a config file
-(defn files-to-watch []
-  [(core/->WatchedFile "resources/sample.log" #"^(?<timestamp>[0-9.,: -]+) (?<loglevel>ERROR) (?<origin>[^-]+) - (?<message>.*)$")])
+(def config-file "configuration.edn")
+
+; TODO supply default if config doesn't exist
+(defn load-configuration
+  ([]
+    (load-configuration (slurp config-file)))
+  ([config-string]
+    (let [raw-edn (edn/read-string config-string)]
+      {:checkIntervalMs (:checkIntervalMs raw-edn)
+       :files (map #(core/->WatchedFile (:path %)
+                                         (re-pattern (:regex %)))
+                   (:files raw-edn))})))

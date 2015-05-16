@@ -1,12 +1,18 @@
 (ns scratch
   (:require [clojure.repl :refer :all]
+            [clojure.tools.namespace.repl :refer [refresh]]
             [log-watchdog.config :as config]
             [log-watchdog.core :as core]
-            [clojure.tools.namespace.repl :refer [refresh]]))
+            [log-watchdog.ui :as ui]))
 
 
 ;; refresh the required namespaces if they changed
 (refresh)
+
+
+;; configuration loading
+(config/load-configuration)
+
 
 ;; test the file-checking functionality
 
@@ -38,3 +44,8 @@
 ;; check the agent states
 @core/watcher-running
 @core/watcher
+
+
+;; start the app
+
+(ui/-main)
