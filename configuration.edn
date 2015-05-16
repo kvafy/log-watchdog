@@ -1,0 +1,6 @@
+
+{:checkIntervalMs 1000
+
+ :files [{:path "resources/sample.log"
+          :regex "^(?<timestamp>[0-9.,: -]+) (?<loglevel>ERROR) (?<origin>[^-]+) - (?<message>.*)$"
+          }]}
