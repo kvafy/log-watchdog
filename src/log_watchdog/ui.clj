@@ -3,7 +3,8 @@
             [log-watchdog.core :as core]
             [log-watchdog.config :as config])
   (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu MenuItem Toolkit]
-           [java.awt.event ActionListener]))
+           [java.awt.event ActionListener])
+  (:gen-class))
 
 
 ;; miscellaneous
