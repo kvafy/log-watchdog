@@ -25,44 +25,27 @@
   (try
     (with-open [reader (io/reader (:path watched-file))]
       (let [all-lines (line-seq reader)
-            positive-lines-lazy (filter #(re-matches (:line-regex watched-file) %) all-lines)
-            positive-lines (doall (set positive-lines-lazy))]
-          (CheckResult. watched-file positive-lines)))
+            alert-lines (filter #(re-matches (:line-regex watched-file) %) all-lines)]
+          (CheckResult. watched-file (doall alert-lines))))
     (catch java.io.IOException e
       (do
         (log/errorf "Failed to read file '%s'" (:path watched-file))
         (CheckResult. watched-file #{})))))
 
 (defn check-files
-  "Returns positive CheckResults for given files."
+  "Returns CheckResults for given files."
   [watched-files]
   (let [check-results (map check-file watched-files)]
     (filter #(not-empty (:alerts %)) check-results)))
 
-
-(defn- filter-out-seen-alerts-from-new-files
-  "This is easy, if a file is new (never contained any alert in the past), its check result contains only unseen alerts."
-  [cur-check-results prev-check-results]
-  (let [known-files (set (map #(:watched-file %) prev-check-results))
-        new-check-results (filter #(not (contains? known-files (:watched-file %))) cur-check-results)]
-    new-check-results))
-
-(defn- filter-out-seen-alerts-from-already-seen-files
-  "If a file contained some alert in the past, we must filter these out and get check results containing only the new alerts."
-  [cur-check-results prev-check-results]
-  (let [known-files (set (map #(:watched-file %) prev-check-results))
-        known-alerts (apply hash-map (mapcat #(list (:watched-file %) (:alerts %)) prev-check-results))
-        possibly-updated-check-results (filter #(contains? known-files (:watched-file %)) cur-check-results)
-        check-results-without-seen-alerts (map #(CheckResult. (:watched-file %)
-                                                              (clojure.set/difference (:alerts %) (known-alerts (:watched-file %))))
-                                               possibly-updated-check-results)]
-    (filter #(not-empty (:alerts %)) check-results-without-seen-alerts)))
-
 (defn filter-out-seen-alerts
   "Returns non-empty check results that don't contain alerts from the prev-check-results."
   [cur-check-results prev-check-results]
-  (concat (filter-out-seen-alerts-from-new-files cur-check-results prev-check-results)
-          (filter-out-seen-alerts-from-already-seen-files cur-check-results prev-check-results)))
+  (let [known-alerts (apply hash-map (mapcat #(list (:watched-file %) (:alerts %)) prev-check-results))]
+    (->> cur-check-results
+         (map #(CheckResult. (:watched-file %)
+                             (clojure.set/difference (:alerts %) (known-alerts (:watched-file %)))))
+         (filter #(not-empty (:alerts %))))))
 
 (defn run-watcher-until-stopped-action-creator
   "Creates a function dispatcheable to an agent. This function periodically checks given files

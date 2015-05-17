@@ -23,7 +23,8 @@
           (:path (:watched-file check-result))
           (->> (:alerts check-result)
                (sort)
-               (map #(str "<li>" % "</li>")))))
+               (map #(str "<li>" % "</li>"))
+               (clojure.string/join))))
 
 (defn notify-unseen-check-results-creator
   "Creates a closure function that can be passed as a notification function

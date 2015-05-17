@@ -25,7 +25,7 @@
   (core/check-files files))
 
 (let [file1 (core/->WatchedFile "file1" #"regexp")
-      cur  [(core/->CheckResult file1 #{"problem 1" "problem 2" "problem 3"})]
+      cur  [(core/->CheckResult file1 #{"problem 1" "problem 2"})]
       prev [(core/->CheckResult file1 #{"problem 1" "problem 2"})]]
   (core/filter-out-seen-alerts cur prev))
 
