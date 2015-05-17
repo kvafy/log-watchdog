@@ -31,7 +31,7 @@
 
 
 ;; reset the watcher agent
-(send core/watcher (fn [_] #{}))
+(restart-agent core/watcher #{})
 
 ;; start the watcher agent
 (let [configuration (config/load-configuration)
@@ -41,7 +41,7 @@
   (send core/watcher-running (fn [_] true))
   (send core/watcher (core/run-watcher-until-stopped-action-creator files notifier-fn intervalMs core/watcher-running)))
 
-;; turn off the agent
+;; stop the watcher agent
 (send core/watcher-running (fn [_] false))
 
 ;; check the agent states
