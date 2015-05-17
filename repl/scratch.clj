@@ -16,27 +16,30 @@
 
 ;; test the file-checking functionality
 
-(let [file (first (config/files-to-watch))]
+(let [configuration (config/load-configuration)
+      file (first (:files configuration))]
   (core/check-file file))
 
-(let [files (config/files-to-watch)]
+(let [configuration (config/load-configuration)
+      files (:files configuration)]
   (core/check-files files))
 
-(let [file1 (core/->WatchedFile. "file1" #"regexp")
-      cur  [(core/->CheckResult. file1 #{"problem 1" "problem 2"})]
-      prev [(core/->CheckResult. file1 #{"problem 1" "problem 3"})]]
-  (core/extract-new-problems cur prev))
+(let [file1 (core/->WatchedFile "file1" #"regexp")
+      cur  [(core/->CheckResult file1 #{"problem 1" "problem 2" "problem 3"})]
+      prev [(core/->CheckResult file1 #{"problem 1" "problem 2"})]]
+  (core/filter-out-seen-alerts cur prev))
 
 
 ;; reset the watcher agent
 (send core/watcher (fn [_] #{}))
 
 ;; start the watcher agent
-(let [files (config/files-to-watch)
+(let [configuration (config/load-configuration)
+      files (:files configuration)
       notifier-fn (fn [new-problems] (println new-problems))
-      intervalMs 1000]
+      intervalMs (:checkIntervalMs configuration)]
   (send core/watcher-running (fn [_] true))
-  (send core/watcher (core/run-watcher-until-stopped-creator files notifier-fn intervalMs core/watcher-running)))
+  (send core/watcher (core/run-watcher-until-stopped-action-creator files notifier-fn intervalMs core/watcher-running)))
 
 ;; turn off the agent
 (send core/watcher-running (fn [_] false))
