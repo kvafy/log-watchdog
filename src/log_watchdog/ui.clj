@@ -4,7 +4,7 @@
             [log-watchdog.config :as config])
   (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu MenuItem Toolkit]
            [java.awt.event ActionListener])
-  (:gen-class))
+  (:gen-class)) ; needed for uberjar because this package contains -main
 
 
 ;; miscellaneous

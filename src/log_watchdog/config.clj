@@ -1,8 +1,7 @@
 (ns log-watchdog.config
   (:require [log-watchdog.core :as core]
             [clojure.edn :as edn])
-  (:import [java.io IOException])
-  (:gen-class))
+  (:import [java.io IOException]))
 
 (def config-file "configuration.edn")
 

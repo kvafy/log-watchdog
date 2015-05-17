@@ -1,8 +1,7 @@
 (ns log-watchdog.core
   (:require [clojure.set]
             [clojure.java.io :as io]
-            [clojure.tools.logging :as log])
-  (:gen-class))
+            [clojure.tools.logging :as log]))
 
 ;; define core data structures
 
