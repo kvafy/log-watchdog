@@ -26,7 +26,7 @@
 
 (let [file1 (core/->WatchedFile "file1" #"regexp")
       cur  [(core/->CheckResult file1 #{"problem 1" "problem 2"})]
-      prev [(core/->CheckResult file1 #{"problem 1" "problem 2"})]]
+      prev [(core/->CheckResult file1 #{"problem 1"})]]
   (core/filter-out-seen-alerts cur prev))
 
 
@@ -36,9 +36,10 @@
 ;; start the watcher agent
 (let [configuration (config/load-configuration)
       files (:files configuration)
-      notifier-fn (fn [new-problems] (println new-problems))
+      notifier-fn (fn [new-problems] (printf "*********** %s\n" new-problems))
       intervalMs (:checkIntervalMs configuration)]
   (send core/watcher-running (fn [_] true))
+  (send core/watcher (fn [_] #{}))
   (send core/watcher (core/run-watcher-until-stopped-action-creator files notifier-fn intervalMs core/watcher-running)))
 
 ;; stop the watcher agent
@@ -50,5 +51,8 @@
 
 
 ;; start the app
-
 (ui/-main)
+
+
+;; stop the app
+(System/exit 0)

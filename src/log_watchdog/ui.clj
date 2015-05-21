@@ -1,6 +1,7 @@
 (ns log-watchdog.ui
   (:require [clojure.java.io :refer [resource]]
             [log-watchdog.core :as core]
+            [log-watchdog.util :as util]
             [log-watchdog.config :as config])
   (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu MenuItem Toolkit]
            [java.awt.event ActionListener])
@@ -19,27 +20,34 @@
 
 ;; agent interaction
 
-(defn check-result-to-html [check-result]
-  (format "<strong>%s</strong><ul>%s</ul>"
-          (:path (:watched-file check-result))
-          (->> (:alerts check-result)
-               (sort)
-               (map #(str "<li>" % "</li>"))
-               (clojure.string/join))))
+(defn format-check-result [check-result]
+  (let [filename (:path (:watched-file check-result))
+        alertCount (count (:alerts check-result))
+        twoOrMoreAlerts (> alertCount 1)]
+    (format "%s: %d new %s"
+            filename
+            alertCount
+            (util/plural-of-word "alert" alertCount))))
 
 (defn notify-unseen-check-results-creator
   "Creates a closure function that can be passed as a notification function
   to an agent watching the files."
   [tray-icon]
   (letfn [(notify-unseen-check-results [unseen-check-results]
-            (let [caption "New errors detected"
+            (let [fileCount (count unseen-check-results)
+                  alertCount (reduce + (map #(count (:alerts %)) unseen-check-results))
+                  caption (format "New %d %s in %d %s detected"
+                                  alertCount
+                                  (util/plural-of-word "alert" alertCount)
+                                  fileCount
+                                  (util/plural-of-word "file" fileCount))
                   text (->> unseen-check-results
                            (sort-by #(:path (:watched-file %)))
-                           (map check-result-to-html)
-                           (clojure.string/join "<br/><br/>"))
+                           (map format-check-result)
+                           (clojure.string/join "\n"))
                   files-with-alerts (map #(:path (:watched-file %)) unseen-check-results)]
               (.setToolTip tray-icon
-                           (clojure.string/join "<br/>" files-with-alerts))
+                           (clojure.string/join ", " files-with-alerts))
               (.displayMessage tray-icon
                                caption
                                text

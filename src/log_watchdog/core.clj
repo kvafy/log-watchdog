@@ -1,7 +1,8 @@
 (ns log-watchdog.core
   (:require [clojure.set]
             [clojure.java.io :as io]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [log-watchdog.util :as util]))
 
 ;; define core data structures
 
@@ -25,7 +26,7 @@
     (with-open [reader (io/reader (:path watched-file))]
       (let [all-lines (line-seq reader)
             alert-lines (filter #(re-matches (:line-regex watched-file) %) all-lines)]
-          (CheckResult. watched-file (doall alert-lines))))
+          (CheckResult. watched-file (set alert-lines))))
     (catch java.io.IOException e
       (do
         (log/errorf "Failed to read file '%s'" (:path watched-file))
@@ -34,17 +35,19 @@
 (defn check-files
   "Returns CheckResults for given files."
   [watched-files]
-  (let [check-results (map check-file watched-files)]
-    (filter #(not-empty (:alerts %)) check-results)))
+  (->> watched-files
+       (map check-file)
+       (filter #(not-empty (:alerts %)))))
 
 (defn filter-out-seen-alerts
   "Returns non-empty check results that don't contain alerts from the prev-check-results."
   [cur-check-results prev-check-results]
-  (let [known-alerts (apply hash-map (mapcat #(list (:watched-file %) (:alerts %)) prev-check-results))]
+  (let [known-alerts-by-file (apply hash-map (mapcat #(list (:watched-file %) (:alerts %)) prev-check-results))]
     (->> cur-check-results
          (map #(CheckResult. (:watched-file %)
-                             (clojure.set/difference (:alerts %) (known-alerts (:watched-file %)))))
-         (filter #(not-empty (:alerts %))))))
+                             (clojure.set/difference (:alerts %) (known-alerts-by-file (:watched-file %)))))
+         (filter #(not-empty (:alerts %)))
+         (vec))))
 
 (defn run-watcher-until-stopped-action-creator
   "Creates a function dispatcheable to an agent. This function periodically checks given files
@@ -54,15 +57,17 @@
   [watched-files notifier intervalMs switch]
   (letfn [(run-watcher-until-stopped-action [prev-check-results]
             (log/info "Running watcher")
-            (when @switch
-              (send-off *agent* run-watcher-until-stopped-action))
-            (let [cur-check-results (set (check-files watched-files))
+            (let [cur-check-results (check-files watched-files)
                   unseen-check-results (filter-out-seen-alerts cur-check-results prev-check-results)]
               (when (not-empty unseen-check-results)
-                (log/infof "Found new problems in %d file(s)" (count unseen-check-results))
+                (log/infof "Found new problems in %d %s"
+                           (count unseen-check-results)
+                           (util/plural-of-word "file" (count unseen-check-results)))
                 (notifier unseen-check-results))
               (Thread/sleep intervalMs)
-              cur-check-results))]
+              (when @switch
+                (send-off *agent* run-watcher-until-stopped-action))
+              (set cur-check-results)))]
     run-watcher-until-stopped-action))
 
 
