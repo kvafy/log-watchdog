@@ -7,4 +7,5 @@
                  [org.clojure/tools.logging "0.3.1"]]
   :main ^:skip-aot log-watchdog.ui
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all}})
+  :profiles {;:dev {:source-paths ["src" "dev"]}
+             :uberjar {:aot :all}})
