@@ -22,36 +22,39 @@
 
 (defn format-check-result [check-result]
   (let [filename (:path (:watched-file check-result))
-        alertCount (count (:alerts check-result))
-        twoOrMoreAlerts (> alertCount 1)]
+        alert-count (count (:alerts check-result))]
     (format "%s: %d new %s"
             filename
-            alertCount
-            (util/plural-of-word "alert" alertCount))))
+            alert-count
+            (util/plural-of-word "alert" alert-count))))
 
 (defn notify-unseen-check-results-creator
   "Creates a closure function that can be passed as a notification function
   to an agent watching the files."
   [tray-icon]
   (letfn [(notify-unseen-check-results [unseen-check-results]
-            (let [fileCount (count unseen-check-results)
-                  alertCount (reduce + (map #(count (:alerts %)) unseen-check-results))
-                  caption (format "New %d %s in %d %s detected"
-                                  alertCount
-                                  (util/plural-of-word "alert" alertCount)
-                                  fileCount
-                                  (util/plural-of-word "file" fileCount))
-                  text (->> unseen-check-results
-                           (sort-by #(:path (:watched-file %)))
-                           (map format-check-result)
-                           (clojure.string/join "\n"))
-                  files-with-alerts (map #(:path (:watched-file %)) unseen-check-results)]
-              (.setToolTip tray-icon
-                           (clojure.string/join ", " files-with-alerts))
-              (.displayMessage tray-icon
-                               caption
-                               text
-                               TrayIcon$MessageType/WARNING)))]
+            (let [alert-count (reduce + (map #(count (:alerts %)) unseen-check-results))]
+              (let [files-with-alerts (map #(get-in % [:watched-file :path]) unseen-check-results)
+                    tooltip (if (empty? files-with-alerts)
+                              "No alerts detected"
+                              (str "Last "
+                                   (util/plural-of-word "alert" alert-count)
+                                   " detected in: " (clojure.string/join ", " files-with-alerts)))]
+                (.setToolTip tray-icon tooltip))
+              (let [file-count (count unseen-check-results)
+                    balloon-caption (format "Detected %d %s in %d %s"
+                                            alert-count
+                                            (util/plural-of-word "alert" alert-count)
+                                            file-count
+                                            (util/plural-of-word "file" file-count))
+                    balloon-text (->> unseen-check-results
+                                      (sort-by #(get-in % [:watched-file :path]))
+                                      (map format-check-result)
+                                      (clojure.string/join "\n"))]
+                (.displayMessage tray-icon
+                                 balloon-caption
+                                 balloon-text
+                                 TrayIcon$MessageType/WARNING))))]
     notify-unseen-check-results))
 
 (defn start-agents! [tray-icon files intervalMs]
