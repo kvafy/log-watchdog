@@ -65,7 +65,7 @@
 
 ;; menu actions
 
-(defn reset
+(defn forget-all-errors
   "Clears the watcher agent, so that it thinks it hasn't seen anything yet in the watched files."
   []
   (send core/watcher (fn [_] #{})))
@@ -79,10 +79,10 @@
         image (.getImage (Toolkit/getDefaultToolkit)
                          (resource "icon64.png"))
         tray-icon (TrayIcon. image)
-        reset-menu (menu-item "Reset" reset)
+        forget-all-menu (menu-item "Forget all errors" forget-all-errors)
         exit-menu (menu-item "Exit" exit)
         popup (PopupMenu.)]
-    (.add popup reset-menu)
+    (.add popup forget-all-menu)
     (.add popup exit-menu)
     (.setPopupMenu tray-icon popup)
     (.setImageAutoSize tray-icon true)
