@@ -39,7 +39,8 @@
                               "No alerts detected"
                               (str "Last "
                                    (util/plural-of-word "alert" alert-count)
-                                   " detected in: " (clojure.string/join ", " files-with-alerts)))]
+                                   " detected in: "
+                                   (clojure.string/join ", " files-with-alerts)))]
                 (.setToolTip tray-icon tooltip))
               (let [file-count (count unseen-check-results)
                     balloon-caption (format "Detected %d %s in %d %s"
@@ -68,8 +69,8 @@
 
 ;; menu actions
 
-(defn forget-all-errors
-  "Clears the watcher agent, so that it thinks it hasn't seen anything yet in the watched files."
+(defn forget-all-alerts
+  "Clears the watcher agent, so that it thinks it hasn't seen any alerts yet in any of the watched files."
   []
   (send core/watcher (fn [_] #{})))
 
@@ -82,10 +83,10 @@
         image (.getImage (Toolkit/getDefaultToolkit)
                          (resource "icon64.png"))
         tray-icon (TrayIcon. image)
-        forget-all-menu (menu-item "Forget all errors" forget-all-errors)
+        forget-all-menu (menu-item "Forget all alerts" forget-all-alerts)
         exit-menu (menu-item "Exit" exit)
         popup (PopupMenu.)]
-    (.add popup forget-all-menu)
+    ;(.add popup forget-all-menu)
     (.add popup exit-menu)
     (.setPopupMenu tray-icon popup)
     (.setImageAutoSize tray-icon true)
