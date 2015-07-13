@@ -1,8 +1,8 @@
 (ns scratch
   (:require [clojure.repl :refer :all]
             [clojure.tools.namespace.repl :refer [refresh]]
-            [log-watchdog.config :as config]
             [log-watchdog.core :as core]
+            [log-watchdog.config :as config]
             [log-watchdog.ui :as ui]))
 
 
