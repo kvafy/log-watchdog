@@ -1,6 +1,10 @@
 
-{:checkIntervalMs 10000
+{ :check-interval-ms 10000
 
- :files [{:path "sample.log"
-          :regex "^(?<timestamp>[0-9.,: -]+) (?<loglevel>ERROR) (?<origin>[^-]+) - (?<message>.*)$"
-          }]}
+  :files
+    { "sample.log"
+        { :line-regex "^(?<timestamp>[0-9.,: -]+) (?<loglevel>ERROR) (?<origin>[^-]+) - (?<message>.*)$" }
+    ;  "/home/kvafy/programming/clojure/log-watchdog/errors.log"
+    ;    { :line-regex "^(?<loglevel>ERROR)  .*"}
+    }
+}

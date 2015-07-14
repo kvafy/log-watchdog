@@ -1,6 +1,7 @@
 (ns log-watchdog.core-test
   (:require [clojure.test :refer :all]
             [log-watchdog.core :as core]))
+(comment
 
 (deftest alert-detection-single-file
   (let [file         nil
@@ -58,3 +59,4 @@
       (let [results-1nil_2nil->1A_2A (core/filter-out-seen-alerts problems-1A_2A problems-1nil_2nil)]
         (is (and (= 2 (count results-1nil_2nil->1A_2A))
                  (every? #(= #{problem-A} %) (map #(:alerts %) results-1nil_2nil->1A_2A))))))))
+)

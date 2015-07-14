@@ -9,50 +9,36 @@
 ;; refresh the required namespaces if they changed
 (refresh)
 
-
 ;; configuration loading
 (config/load-configuration)
 
+;; creating initial system from configuration
+(core/create-system (config/load-configuration))
 
 ;; test the file-checking functionality
-
 (let [configuration (config/load-configuration)
-      file (first (:files configuration))]
-  (core/check-file file))
-
-(let [configuration (config/load-configuration)
-      files (:files configuration)]
-  (core/check-files files))
-
-(let [file1 (core/->WatchedFile "file1" #"regexp")
-      cur  [(core/->CheckResult file1 #{"problem 1" "problem 2"})]
-      prev [(core/->CheckResult file1 #{"problem 1"})]]
-  (core/filter-out-seen-alerts cur prev))
+      system (core/create-system configuration)]
+  (core/update-system-by-checking-files system))
 
 
-;; reset the watcher agent
-(restart-agent core/watcher #{})
 
-;; start the watcher agent
-(let [configuration (config/load-configuration)
-      files (:files configuration)
-      notifier-fn (fn [new-problems] (printf "*********** %s\n" new-problems))
-      intervalMs (:checkIntervalMs configuration)]
-  (send core/watcher-running (fn [_] true))
-  (send core/watcher (fn [_] #{}))
-  (send core/watcher (core/run-watcher-until-stopped-action-creator files notifier-fn intervalMs core/watcher-running)))
+;; initialize the system
+(let [configuration (config/load-configuration)]
+  (core/reset-system! configuration))
 
-;; stop the watcher agent
-(send core/watcher-running (fn [_] false))
+;; explicitly invoke single system update
+(swap! core/system core/update-system-by-checking-files)
 
-;; check the agent states
-@core/watcher-running
-@core/watcher
+;; enable/disable the watcher thread
+(swap! ui/watcher-enabled (fn [state] (not state)))
+
+;; inspect the system and watcher state
+@core/system
+@ui/watcher-enabled
 
 
-;; start the app
+;; start the swing UI app
 (ui/-main)
-
 
 ;; stop the app
 (System/exit 0)
