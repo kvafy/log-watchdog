@@ -21,5 +21,7 @@ The application is fuly configured via file "configuration.edn" that needs to be
 ## What is next
 
 * alert aging and cleaning
+* data structure validation (bouncer)
+* better unit test coverage
 * ...
 
