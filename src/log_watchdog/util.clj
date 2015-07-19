@@ -8,6 +8,8 @@
       (str word plural-suffix)
       word)))
 
+(defn current-time-ms []
+  (System/currentTimeMillis))
 
 
 ; Following code taken from https://gist.github.com/ataggart/377278

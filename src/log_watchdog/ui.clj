@@ -36,29 +36,22 @@
 ;; observers of the system state
 
 (defn notify-new-system [system tray-icon]
-  (let [all-file-paths (keys (get-in system [:files]))
-        file-paths-with-unacked-alert-lines (filter (fn [file-path]
-                                                      (not-empty
-                                                       (get-in system [:files file-path :unacknowledged-alert-lines])))
-                                                    all-file-paths)
-        unacked-alert-lines (reduce (fn [alerts file-path]
-                                      (clojure.set/union alerts (get-in system [:files file-path :unacknowledged-alert-lines])))
-                                    #{}
-                                    all-file-paths)]
-    (let [tooltip (if (empty? file-paths-with-unacked-alert-lines)
+  (let [file-paths-with-unacked-alerts (core/file-paths system core/file-has-unacknowledged-alert?)
+        unacked-alerts (core/alerts system file-paths-with-unacked-alerts core/unacknowledged-alert?)]
+    (let [tooltip (if (empty? file-paths-with-unacked-alerts)
                     "No unacknowledged alerts"
                     (format "%d unacknowledged %s in: %s"
-                            (count unacked-alert-lines)
-                            (util/plural-of-word "alert" (count unacked-alert-lines))
-                            (clojure.string/join ", " file-paths-with-unacked-alert-lines)))]
+                            (count unacked-alerts)
+                            (util/plural-of-word "alert" (count unacked-alerts))
+                            (clojure.string/join ", " file-paths-with-unacked-alerts)))]
       (.setToolTip tray-icon tooltip))
-    (when (not-empty file-paths-with-unacked-alert-lines)
+    (when (not-empty file-paths-with-unacked-alerts)
       (let [balloon-caption (format "You have %d unacknowledged %s in %d %s"
-                                    (count unacked-alert-lines)
-                                    (util/plural-of-word "alert" (count unacked-alert-lines))
-                                    (count file-paths-with-unacked-alert-lines)
-                                    (util/plural-of-word "file" (count file-paths-with-unacked-alert-lines)))
-            balloon-text (clojure.string/join "\n" file-paths-with-unacked-alert-lines)]
+                                    (count unacked-alerts)
+                                    (util/plural-of-word "alert" (count unacked-alerts))
+                                    (count file-paths-with-unacked-alerts)
+                                    (util/plural-of-word "file" (count file-paths-with-unacked-alerts)))
+            balloon-text (clojure.string/join "\n" file-paths-with-unacked-alerts)]
         (.displayMessage tray-icon
                          balloon-caption
                          balloon-text

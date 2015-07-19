@@ -1,42 +1,95 @@
 (ns log-watchdog.core
   (:require [clojure.set]
+            [clojure.zip :as zip]
             [clojure.java.io :as io]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [log-watchdog.util :as util]))
 
-;;TODO add map structure constraints/hints
+;;TODO add map structure constraints/hints using the bouncer
 
 ; 'system' is the following data structure holding complete application state:
 ;
 ;   { :check-interval-ms value
+;
 ;     :files
 ;       {  "file-path-A"
 ;            { :line-regex "pattern-instance"
-;              :alert-lines #{line1 line2 ... lineN}
-;              :unacknowledged-alert-lines #{line1 line2 ... lineM}}
+;              :alerts
+;                { "<line1>"
+;                    { :last-seen-timestamp <timestampMs>
+;                      :acknowledged <true/false>}
+;                  ...
+;                  "<lineN>"
+;                    { ... }
+;                }
 ;          "file-path-B"
 ;            {...}
 ;          ...
 ;       }
 ;   }
+;
 
 ; holds instance of the system
 (def system (atom nil))
 
 (defn create-system
-  "Creates a system instance based on a configuration map as returned by log-watchdod.config/load-configuration."
+  "Creates a system instance based on a configuration map as returned by log-watchdog.config/load-configuration."
   [config]
-  (let [config-map {:check-interval-ms (get-in config [:check-interval-ms])}
+  (let [base-map {:last-unacknowledged-notification-timestamp nil}
+        config-map {:check-interval-ms (get-in config [:check-interval-ms])}
         files-map (into {}
                         (for [file-name (keys (get-in config [:files]))]
                           {file-name {:line-regex (get-in config [:files file-name :line-regex])
-                                      :alert-lines #{}
-                                      :unacknowledged-alert-lines #{}}}))]
-    (-> {}
+                                      :alerts {}}}))]
+    (-> base-map
         (into config-map)
         (into {:files files-map}))))
 
-(defn all-file-paths [system]
-  (keys (get-in system [:files])))
+(defn reset-system!
+  "Clears current state of the 'system' atom and sets up a fresh system in which no check has been performed yet."
+  [config]
+  (let [new-system (create-system config)]
+    (swap! system (fn [_] new-system))))
+
+
+;; creating parts of a system
+
+(defn create-alert [timestamp-ms]
+  {:last-seen-timestamp timestamp-ms
+   :acknowledged false})
+
+
+;; inspecting/modifying a system
+
+(defn file-paths
+  ([system]
+    (file-paths system (fn [_] true)))
+  ([system pred]
+    (->> (get-in system [:files])
+         (filter pred)
+         (map (fn [[file-path file-data]] file-path)))))
+
+(defn alerts
+  ([system]
+    (alerts system (file-paths system)))
+  ([system file-paths]
+    (alerts system file-paths (fn [_] true)))
+  ([system file-paths pred]
+    {:pre (seq? file-paths)}
+    (->> file-paths
+         (map (fn [file-path] (get-in system [:files file-path :alerts])))
+         (apply merge)
+         (filter pred)
+         (into {}))))
+
+; predicates to use with 'file-paths' and 'alerts' functions
+(declare unacknowledged-alert?)
+(defn file-has-unacknowledged-alert? [[file-path {:keys [alerts]}]]
+  (some unacknowledged-alert? alerts))
+
+(defn unacknowledged-alert? [[alert-line alert-data]]
+  (not (:acknowledged alert-data)))
+
 
 ;; logic of checking files
 
@@ -46,15 +99,16 @@
   {:pre (contains? system file-path)}
   (try
     (with-open [reader (io/reader file-path)]
-      (let [regex (get-in system [:files file-path :line-regex])
-            prev-alert-lines (get-in system [:files file-path :alert-lines])
+      (let [now (util/current-time-ms)
+            regex (get-in system [:files file-path :line-regex])
             cur-alert-lines (->> (line-seq reader)
-                                 (filter #(re-matches regex %))
-                                 (set))
-            new-alert-lines (clojure.set/difference cur-alert-lines prev-alert-lines)]
-        (-> system
-            (update-in [:files file-path :alert-lines] clojure.set/union new-alert-lines)
-            (update-in [:files file-path :unacknowledged-alert-lines] clojure.set/union new-alert-lines))))
+                                 (filter #(re-matches regex %)))]
+        (reduce (fn [sys alert-line]
+                  (if (contains? (alerts sys [file-path]) alert-line)
+                    sys
+                    (assoc-in sys [:files file-path :alerts alert-line] (create-alert now))))
+                system
+                cur-alert-lines)))
     (catch java.io.IOException ex
       (do
         (log/error ex (str "Failed to read file " file-path))
@@ -63,27 +117,24 @@
 (defn update-system-by-checking-files
   "Updates the system by checking all files and updating their maps with newly found alert lines."
   [system]
-  (reduce (fn [sys file-path]
-            (check-file sys file-path))
+  (reduce (fn [sys file-path] (check-file sys file-path))
           system
-          (all-file-paths system)))
+          (file-paths system)))
+
+
+;; acknowledging alerts
 
 (defn update-system-by-acknowledging-alerts
-  "Updates the system by acknowledging alerts for given files. If no files are given, then
+  "Updates the system by acknowledging all alerts for given files. If no files are given, then
   acknowledges alerts for all files."
-  [system & file-paths]
-  (let [file-paths (if (empty? file-paths)
-                     (all-file-paths system)
-                     file-paths)]
-    (reduce (fn [sys file-path]
-              (update-in sys [:files file-path :unacknowledged-alert-lines] empty))
+  [system & file-paths-to-ack]
+  (let [file-paths-to-ack (if (empty? file-paths-to-ack)
+                     (file-paths system)
+                     file-paths-to-ack)]
+    ;TODO use zippers for more idiomatic solution
+    (reduce (fn [sys [file-path alert-line]]
+              (assoc-in sys [:files file-path :alerts alert-line :acknowledged] true))
             system
-            file-paths)))
-
-
-(defn reset-system!
-  "Clears current state of the watcher agent and sets up new state, saying that
-  the agent is watching given set of files and so far has seen nothing."
-  [config]
-  (let [new-system (create-system config)]
-    (swap! system (fn [_] new-system))))
+            (for [file-path file-paths-to-ack
+                  [alert-line _] (alerts system [file-path])]
+              (vector file-path alert-line)))))
