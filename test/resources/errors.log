@@ -1,0 +1,5 @@
+ERROR  (2015-05-20 16:04:01,465.CEST) [pool-12-thread-1] PendingNotificationDeliveryAgent - Failed delivering pending notifications to subscription 2bb6266b-8887-4f21-b255-6e641a3a0c35
+ERROR  (2015-05-20 16:04:01,473.CEST) [Thread-35] NotificationManager - Error in RetryNotificationsThreadEntryPoint()
+java.lang.IllegalArgumentException: Invalid UUID string: com.solarwinds.informationservice.changebroker.Subscription@459bf981
+	at java.util.UUID.fromString(UUID.java:201)
+	at java.lang.Thread.run(Thread.java:662)
