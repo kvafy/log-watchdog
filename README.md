@@ -1,36 +1,25 @@
 # log-watchdog
 
-FIXME: description
+A Clojure utility that watches log files for lines matching configured regular expressions and shows balloon notifications in system tray. The user needs to acknowledge the alerts, otherwise the notifications will periodically reappear.
 
-## Installation
-
-Download from http://example.com/FIXME.
 
 ## Usage
 
-FIXME: explanation
+Compile and run:
 
-    $ java -jar log-watchdog-0.1.0-standalone.jar [args]
+    $ lein uberjar
+    $ java -jar target/uberjar/log-watchdog-*.jar
+
+Note: Make sure to have file "configuration.edn" in current working directory when running the application.
+
 
 ## Options
 
-FIXME: listing of options this app accepts.
+The application is fuly configured via file "configuration.edn" that needs to be in the current working directory when running the application.
 
-## Examples
 
-...
+## What is next
 
-### Bugs
+* alert aging and cleaning
+* ...
 
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
-
-## License
-
-Copyright © 2015 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
