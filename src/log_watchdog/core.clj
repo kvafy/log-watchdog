@@ -9,14 +9,17 @@
 
 ; 'system' is the following data structure holding complete application state:
 ;
-;   { :check-interval-ms value
+;   { :check-interval-ms <timestamp-ms>
+;     :nagging-interval-ms <timestamp-ms>
+;
+;     :last-notification-timestamp <timestamp-ms>
 ;
 ;     :files
 ;       {  "file-path-A"
 ;            { :line-regex "pattern-instance"
 ;              :alerts
 ;                { "<line1>"
-;                    { :last-seen-timestamp <timestampMs>
+;                    { :last-seen-timestamp <timestamp-ms>
 ;                      :acknowledged <true/false>}
 ;                  ...
 ;                  "<lineN>"
@@ -35,8 +38,9 @@
 (defn create-system
   "Creates a system instance based on a configuration map as returned by log-watchdog.config/load-configuration."
   [config]
-  (let [base-map {:last-unacknowledged-notification-timestamp nil}
-        config-map {:check-interval-ms (get-in config [:check-interval-ms])}
+  (let [base-map {:last-notification-timestamp 0}
+        config-map {:check-interval-ms (get-in config [:check-interval-ms])
+                    :nagging-interval-ms (get-in config [:nagging-interval-ms])}
         files-map (into {}
                         (for [file-name (keys (get-in config [:files]))]
                           {file-name {:line-regex (get-in config [:files file-name :line-regex])
@@ -91,9 +95,17 @@
   (not (:acknowledged alert-data)))
 
 
-;; logic of checking files
+;; comparing systems
 
-(defn check-file
+(defn has-new-alert [prev-system cur-system]
+  (let [prev-alert-lines (keys (alerts prev-system))
+        cur-alert-lines  (keys (alerts cur-system))]
+    (not (every? (set prev-alert-lines) cur-alert-lines))))
+
+
+;; update system by an action
+
+(defn- check-file
   "Checks current alerts in given file and updates part of the system which represents this file."
   [system file-path]
   {:pre (contains? system file-path)}
@@ -121,9 +133,6 @@
           system
           (file-paths system)))
 
-
-;; acknowledging alerts
-
 (defn update-system-by-acknowledging-alerts
   "Updates the system by acknowledging all alerts for given files. If no files are given, then
   acknowledges alerts for all files."
@@ -138,3 +147,8 @@
             (for [file-path file-paths-to-ack
                   [alert-line _] (alerts system [file-path])]
               (vector file-path alert-line)))))
+
+(defn update-system-by-setting-last-notification-timestamp
+  "Updates the system by setting new value for timestamp of last notification."
+  [system last-notification-timestamp]
+  (assoc-in system [:last-notification-timestamp] last-notification-timestamp))

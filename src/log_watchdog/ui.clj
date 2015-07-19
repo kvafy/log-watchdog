@@ -35,9 +35,11 @@
 
 ;; observers of the system state
 
-(defn notify-new-system [system tray-icon]
-  (let [file-paths-with-unacked-alerts (core/file-paths system core/file-has-unacknowledged-alert?)
-        unacked-alerts (core/alerts system file-paths-with-unacked-alerts core/unacknowledged-alert?)]
+(def nagging-period-ms (* 1000 60))
+
+(defn notify-new-system [prev-system cur-system tray-icon]
+  (let [file-paths-with-unacked-alerts (core/file-paths cur-system core/file-has-unacknowledged-alert?)
+        unacked-alerts (core/alerts cur-system file-paths-with-unacked-alerts core/unacknowledged-alert?)]
     (let [tooltip (if (empty? file-paths-with-unacked-alerts)
                     "No unacknowledged alerts"
                     (format "%d unacknowledged %s in: %s"
@@ -45,21 +47,29 @@
                             (util/plural-of-word "alert" (count unacked-alerts))
                             (clojure.string/join ", " file-paths-with-unacked-alerts)))]
       (.setToolTip tray-icon tooltip))
-    (when (not-empty file-paths-with-unacked-alerts)
-      (let [balloon-caption (format "You have %d unacknowledged %s in %d %s"
-                                    (count unacked-alerts)
-                                    (util/plural-of-word "alert" (count unacked-alerts))
-                                    (count file-paths-with-unacked-alerts)
-                                    (util/plural-of-word "file" (count file-paths-with-unacked-alerts)))
-            balloon-text (clojure.string/join "\n" file-paths-with-unacked-alerts)]
-        (.displayMessage tray-icon
-                         balloon-caption
-                         balloon-text
-                         TrayIcon$MessageType/WARNING)))))
+    (let [has-new-alert (core/has-new-alert prev-system cur-system)
+          last-notification-timestamp (:last-notification-timestamp cur-system)
+          nagging-interval-ms (:nagging-interval-ms cur-system)]
+      (when (and (not-empty unacked-alerts)
+                 (or has-new-alert
+                     (< (+ last-notification-timestamp nagging-interval-ms)
+                        (util/current-time-ms))))
+        (swap! core/system core/update-system-by-setting-last-notification-timestamp (util/current-time-ms))
+        (let [balloon-caption (format "You%s have %d unacknowledged %s in %d %s"
+                                      (if has-new-alert "" " still")
+                                      (count unacked-alerts)
+                                      (util/plural-of-word "alert" (count unacked-alerts))
+                                      (count file-paths-with-unacked-alerts)
+                                      (util/plural-of-word "file" (count file-paths-with-unacked-alerts)))
+              balloon-text (clojure.string/join "\n" file-paths-with-unacked-alerts)]
+          (.displayMessage tray-icon
+                           balloon-caption
+                           balloon-text
+                           TrayIcon$MessageType/WARNING))))))
 
 (defn create-system-watch-fn [tray-icon]
   (letfn [(system-watch-fn [key system-ref prev-system cur-system]
-            (notify-new-system cur-system tray-icon))]
+            (notify-new-system prev-system cur-system tray-icon))]
     system-watch-fn))
 
 

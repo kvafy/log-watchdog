@@ -1,5 +1,6 @@
 
 { :check-interval-ms 5000
+  :nagging-interval-ms 60000
 
   :files
     { "test/resources/errors.log"
