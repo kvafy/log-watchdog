@@ -117,6 +117,4 @@
       (core/reset-system! configuration)
       (start-watcher-thread!))
     (catch Exception ex
-      (do
-        (log/error ex "Failed to read the configuration file")
-        (println (str "Failed to read the configuration file: " (.getMessage ex)))))))
+      (log/error ex "Failed to read the configuration file"))))

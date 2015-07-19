@@ -70,13 +70,13 @@
 
 (defn update-system-by-acknowledging-alerts
   "Updates the system by acknowledging alerts for given files. If no files are given, then
-  acknowledges acknowledges alerts for all files."
+  acknowledges alerts for all files."
   [system & file-paths]
   (let [file-paths (if (empty? file-paths)
                      (all-file-paths system)
                      file-paths)]
     (reduce (fn [sys file-path]
-              (update-in system [:files file-path :unacknowledged-alert-lines] empty))
+              (update-in sys [:files file-path :unacknowledged-alert-lines] empty))
             system
             file-paths)))
 
