@@ -4,21 +4,49 @@
             [log-watchdog.config :as config]
             [log-watchdog.validators :as validators]))
 
-(let [cfg-raw "{ :check-interval-ms 5000
-                 :nagging-interval-ms 60000
-                 :files
-                   { \"file1\"
-                       { :line-regex \"^ERROR.*$\" }
-                     \"file2\"
-                       { :line-regex \"^WARN.*$\"}
-                   }
-               }"]
-  (deftest load-configuration-test
-    (testing "verification of loaded configuration against schema"
-      (s/validate validators/configuration (config/load-configuration cfg-raw)))
-    (testing "correct values are loaded"
-      (let [cfg (config/load-configuration cfg-raw)]
-        (is (= 5000 (:check-interval-ms cfg)))
-        (is (= 60000 (:nagging-interval-ms cfg)))
-        (is (= 2 (count (:files cfg))))
-        (is (= #{"file1" "file2"} (set (keys (:files cfg)))))))))
+
+(def valid-configuration-raw
+  "{ :check-interval-ms 5000
+     :nagging-interval-ms 60000
+     :files
+       { \"file1\"
+           { :line-regex \"^ERROR.*$\" }
+         \"file2\"
+           { :line-regex \"^WARN.*$\"}
+       }
+   }")
+
+
+(def valid-configuration
+  { :check-interval-ms 5000
+    :nagging-interval-ms 60000
+    :files
+      { "file1"
+          { :line-regex #"^ERROR.*$"}
+        "file2"
+          { :line-regex #"^WARN.*$"}}})
+
+
+(deftest configuration-validator-test
+  (testing "valid configuration is accepted by the validator"
+    (s/validate validators/configuration valid-configuration))
+  (testing "zero files is a valid scenario"
+    (s/validate validators/configuration (assoc valid-configuration :files {})))
+  (testing "missing entries are detected as errors"
+    (is (thrown? Exception (s/validate validators/configuration (dissoc valid-configuration :check-interval-ms))))
+    (is (thrown? Exception (s/validate validators/configuration (dissoc valid-configuration :nagging-interval-ms))))
+    (is (thrown? Exception (s/validate validators/configuration (dissoc valid-configuration :files))))
+    (is (thrown? Exception (s/validate validators/configuration (update-in valid-configuration [:files "file_path.log"] dissoc :line-regex)))))
+  (testing "extra entries are detected as errors"
+    (is (thrown? Exception (s/validate validators/configuration (assoc valid-configuration :extra-key "extra value"))))))
+
+
+(deftest load-configuration-test
+  (testing "verification of loaded configuration against schema"
+    (s/validate validators/configuration (config/load-configuration valid-configuration-raw)))
+  (testing "correct values are loaded"
+    (let [cfg (config/load-configuration valid-configuration-raw)]
+      (is (= 5000 (:check-interval-ms cfg)))
+      (is (= 60000 (:nagging-interval-ms cfg)))
+      (is (= 2 (count (:files cfg))))
+      (is (= #{"file1" "file2"} (set (keys (:files cfg))))))))

@@ -5,32 +5,8 @@
             [clojure.tools.logging :as log]
             [log-watchdog.util :as util]))
 
-;;TODO add map structure constraints/hints using the bouncer
-
-; 'system' is the following data structure holding complete application state:
-;
-;   { :check-interval-ms <timestamp-ms>
-;     :nagging-interval-ms <timestamp-ms>
-;
-;     :last-notification-timestamp <timestamp-ms>
-;
-;     :files
-;       {  "file-path-A"
-;            { :line-regex "pattern-instance"
-;              :alerts
-;                { "<line1>"
-;                    { :last-seen-timestamp <timestamp-ms>
-;                      :acknowledged <true/false>}
-;                  ...
-;                  "<lineN>"
-;                    { ... }
-;                }
-;          "file-path-B"
-;            {...}
-;          ...
-;       }
-;   }
-;
+; A 'system' is a data structure holding complete application state.
+; To understand how the system is organized, see 'system' schema in 'validators' namespace.
 
 ; holds instance of the system
 (def system (atom nil))
@@ -97,7 +73,7 @@
 
 ;; comparing systems
 
-(defn has-new-alert [prev-system cur-system]
+(defn has-new-alert? [prev-system cur-system]
   (let [prev-alert-lines (keys (alerts prev-system))
         cur-alert-lines  (keys (alerts cur-system))]
     (not (every? (set prev-alert-lines) cur-alert-lines))))

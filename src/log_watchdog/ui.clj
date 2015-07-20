@@ -47,16 +47,16 @@
                             (util/plural-of-word "alert" (count unacked-alerts))
                             (clojure.string/join ", " file-paths-with-unacked-alerts)))]
       (.setToolTip tray-icon tooltip))
-    (let [has-new-alert (core/has-new-alert prev-system cur-system)
+    (let [has-new-alert? (core/has-new-alert? prev-system cur-system)
           last-notification-timestamp (:last-notification-timestamp cur-system)
           nagging-interval-ms (:nagging-interval-ms cur-system)]
       (when (and (not-empty unacked-alerts)
-                 (or has-new-alert
+                 (or has-new-alert?
                      (< (+ last-notification-timestamp nagging-interval-ms)
                         (util/current-time-ms))))
         (swap! core/system core/update-system-by-setting-last-notification-timestamp (util/current-time-ms))
         (let [balloon-caption (format "You%s have %d unacknowledged %s in %d %s"
-                                      (if has-new-alert "" " still")
+                                      (if has-new-alert? "" " still")
                                       (count unacked-alerts)
                                       (util/plural-of-word "alert" (count unacked-alerts))
                                       (count file-paths-with-unacked-alerts)
