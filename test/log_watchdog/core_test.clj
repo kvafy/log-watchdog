@@ -1,8 +1,51 @@
 (ns log-watchdog.core-test
   (:require [clojure.test :refer :all]
-            [log-watchdog.core :as core]))
-(comment
+            [log-watchdog.core :as core]
+            [log-watchdog.config :as config]))
 
+;; definition of testing systems
+
+(def system-1-file-str
+  "{ :check-interval-ms 10000
+     :nagging-interval-ms 60000
+     :files
+       { \"error.log\"
+         { :line-regex \"^ERROR.*$\" }
+       }
+   }")
+(def system-1-file-cfg (config/load-configuration system-1-file-str))
+
+(def system-2-files-str
+  "{ :check-interval-ms 10000
+     :nagging-interval-ms 60000
+     :files
+       { \"error.log\"
+         { :line-regex \"^ERROR.*$\" }
+         \"warn.log\"
+         { :line-regex \"^WARN.*$\" }
+       }
+   }")
+(def system-2-files-cfg (config/load-configuration system-2-files-str))
+
+
+(deftest create-system-test
+  ; the fact that systems contain valid data is ensured by bouncer validators
+  ;;TODO put the validators in place
+  ;;TODO negative testing (invalid regexp etc.)
+  (core/create-system system-1-file-cfg)
+  (core/create-system system-2-files-cfg))
+
+
+(def system-1-file  (core/create-system system-1-file-cfg))
+(def system-2-files (core/create-system system-2-files-cfg))
+
+(deftest all-file-paths-test
+  (is (= #{"error.log"} (set (core/file-paths system-1-file))))
+  (is (= #{"error.log" "warn.log"} (set (core/file-paths system-2-files)))))
+
+
+
+(comment
 (deftest alert-detection-single-file
   (let [file         nil
         problem-A    "problem A"
