@@ -76,15 +76,19 @@
 
 
 (deftest update-system-by-checking-files-test
-  (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _]
-                                              (let [file-data (if (= file-path "file-path-1")
-                                                                "ERROR new error"
-                                                                "")]
-                                                (BufferedReader. (StringReader. file-data))))}
-    (fn []
-      (let [new-system (core/update-system-by-checking-files valid-system)]
-        (s/validate validators/system new-system)
-        (is (contains? (core/alerts new-system) "ERROR new error"))))))
+  (let [updated-file "file-path-1"
+        new-alert-line "ERROR This is a new error"]
+    (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _]
+                                                (let [file-data (if (= file-path updated-file)
+                                                                  new-alert-line
+                                                                  "")]
+                                                  (BufferedReader. (StringReader. file-data))))}
+      (fn []
+        (let [new-system (core/update-system-by-checking-files valid-system)]
+          (s/validate validators/system new-system)
+          (let [new-alerts (core/alerts new-system [updated-file])]
+            (is (contains? new-alerts new-alert-line))
+            (is (not (get-in new-alerts [new-alert-line :acknowledged])))))))))
 
 
 (deftest update-system-by-acknowledging-alerts-test
