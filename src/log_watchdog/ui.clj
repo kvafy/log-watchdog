@@ -5,7 +5,7 @@
             [log-watchdog.core :as core]
             [log-watchdog.util :as util]
             [log-watchdog.config :as config])
-  (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu MenuItem Toolkit]
+  (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu MenuItem Toolkit Desktop]
            [java.awt.event ActionListener])
   (:gen-class)) ; needed for uberjar because this package contains -main function
 
@@ -34,8 +34,6 @@
 
 
 ;; observers of the system state
-
-(def nagging-period-ms (* 1000 60))
 
 (defn notify-new-system [prev-system cur-system tray-icon]
   (let [file-paths-with-unacked-alerts (core/file-paths cur-system core/file-has-unacknowledged-alert?)
@@ -73,13 +71,15 @@
     system-watch-fn))
 
 
-;; menu
+;; menu & tray icon
 
-(defn menu-item [label callback]
-  (let [menu (MenuItem. label)
-        listener (proxy [ActionListener] []
-                   (actionPerformed [event] (callback)))]
-    (.addActionListener menu listener)
+(defn create-action-listener [callback]
+  (proxy [ActionListener] []
+    (actionPerformed [event] (callback))))
+
+(defn create-menu-item [label callback]
+  (let [menu (MenuItem. label)]
+    (.addActionListener menu (create-action-listener callback))
     menu))
 
 (defn ack-all-alerts []
@@ -88,20 +88,26 @@
 (defn exit []
   (System/exit 0))
 
+(defn open-files-with-alerts []
+  (let [cur-system @core/system
+        file-paths-to-open (core/file-paths cur-system core/file-has-unacknowledged-alert?)
+        desktop (Desktop/getDesktop)]
+    (doseq [file-path-to-open file-paths-to-open]
+      (.open desktop (java.io.File. file-path-to-open)))))
+
 (defn register-tray-icon! []
   (let [tray (SystemTray/getSystemTray)
         image (.getImage (Toolkit/getDefaultToolkit)
                          (resource "icon64.png"))
         tray-icon (TrayIcon. image)
-        ack-all-alerts-menu (menu-item "Acknowledge all alerts" ack-all-alerts)
-        ;forget-all-menu (menu-item "Forget all alerts" forget-all-alerts)
-        exit-menu (menu-item "Exit" exit)
+        ack-all-alerts-menu (create-menu-item "Acknowledge all alerts" ack-all-alerts)
+        exit-menu (create-menu-item "Exit" exit)
         popup (PopupMenu.)]
-    ;(.add popup forget-all-menu)
     (.add popup ack-all-alerts-menu)
     (.add popup exit-menu)
     (.setPopupMenu tray-icon popup)
     (.setImageAutoSize tray-icon true)
+    (.addActionListener tray-icon (create-action-listener open-files-with-alerts))
     (.add tray tray-icon)
     tray-icon))
 
