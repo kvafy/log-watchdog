@@ -11,19 +11,56 @@
 ; holds instance of the system
 (def system (atom nil))
 
+
+;; accessors of system properties
+
+(defn- check-interval-ms-accessor []
+  [:check-interval-ms])
+(defn- nagging-interval-ms-accessor []
+  [:nagging-interval-ms])
+(defn- last-notification-timestamp-accessor []
+  [:last-notification-timestamp])
+(defn- tray-icon-accessor []
+  [:ui :tray-icon])
+(defn- files-map-accessor []
+  [:files])
+(defn- file-data-accessor [file-path]
+  [:files file-path])
+(defn- file-property-accessor [file-path property]
+  (conj (file-data-accessor file-path) property))
+(defn- alerts-map-accessor [file-path]
+  (file-property-accessor file-path :alerts))
+(defn- alert-data-accessor [file-path alert-line]
+  (conj (alerts-map-accessor file-path) alert-line))
+(defn- alert-property-accessor [file-path alert-line property]
+  (conj (alert-data-accessor file-path alert-line) property))
+
+
+;; creating (parts of) a system
+
+(defn create-alert-data [timestamp-ms]
+  {:last-seen-timestamp timestamp-ms
+   :acknowledged false})
+
+(defn create-file-data [line-regex alerts]
+  {:line-regex line-regex
+   :alerts alerts})
+
 (defn create
   "Creates a system instance based on a configuration map as returned by log-watchdog.config/load-configuration."
   [config]
-  (let [base-map {:last-notification-timestamp 0}
-        config-map {:check-interval-ms (get-in config [:check-interval-ms])
-                    :nagging-interval-ms (get-in config [:nagging-interval-ms])}
-        files-map (into {}
-                        (for [file-name (keys (get-in config [:files]))]
-                          {file-name {:line-regex (get-in config [:files file-name :line-regex])
-                                      :alerts {}}}))]
+  (let [base-map   (-> {}
+                       (assoc-in (last-notification-timestamp-accessor) 0))
+        config-map (-> {}
+                       (assoc-in (check-interval-ms-accessor) (get-in config [:check-interval-ms]))
+                       (assoc-in (nagging-interval-ms-accessor) (get-in config [:nagging-interval-ms])))
+        files-map (apply merge-with ; TODO write a *-level map merge
+                         merge
+                         (for [file-name (keys (get-in config [:files]))]
+                             (assoc-in {} (file-data-accessor file-name) (create-file-data (get-in config [:files file-name :line-regex]) {}))))]
     (-> base-map
         (into config-map)
-        (into {:files files-map}))))
+        (into files-map))))
 
 (defn reset!
   "Clears current state of the 'system' atom and sets up a fresh system in which no check has been performed yet."
@@ -32,20 +69,13 @@
     (swap! system (fn [_] new-system))))
 
 
-;; creating parts of a system
-
-(defn create-alert-data [timestamp-ms]
-  {:last-seen-timestamp timestamp-ms
-   :acknowledged false})
-
-
 ;; inspecting a system
 
 (defn file-paths
   ([system]
     (file-paths system (fn [_] true)))
   ([system pred]
-    (->> (get-in system [:files])
+    (->> (get-in system (files-map-accessor))
          (filter pred)
          (map (fn [[file-path file-data]] file-path)))))
 
@@ -57,7 +87,7 @@
   ([system file-paths pred]
     {:pre (seq? file-paths)}
     (->> file-paths
-         (map (fn [file-path] (get-in system [:files file-path :alerts])))
+         (map (fn [file-path] (get-in system (alerts-map-accessor file-path))))
          (apply merge)
          (filter pred)
          (into {}))))
@@ -86,7 +116,7 @@
         (reduce (fn [sys alert-line]
                   (if (contains? (alerts sys [file-path]) alert-line)
                     sys
-                    (assoc-in sys [:files file-path :alerts alert-line] (create-alert-data now))))
+                    (assoc-in sys (alert-data-accessor file-path alert-line) (create-alert-data now))))
                 system
                 cur-alert-lines)))
     (catch java.io.IOException ex
@@ -110,34 +140,23 @@
                      file-paths-to-ack)]
     ;TODO use zippers for more idiomatic solution
     (reduce (fn [sys [file-path alert-line]]
-              (assoc-in sys [:files file-path :alerts alert-line :acknowledged] true))
+              (assoc-in sys (alert-property-accessor file-path alert-line :acknowledged) true))
             system
             (for [file-path file-paths-to-ack
                   [alert-line _] (alerts system [file-path])]
               (vector file-path alert-line)))))
 
-(defn- check-interval-ms-accessor []
-  [:check-interval-ms])
 (defn check-interval-ms [system]
   (get-in system (check-interval-ms-accessor)))
 
-
-(defn- nagging-interval-ms-accessor []
-  [:nagging-interval-ms])
 (defn nagging-interval-ms [system]
   (get-in system (nagging-interval-ms-accessor)))
 
-
-(defn- last-notification-timestamp-accessor []
-  [:last-notification-timestamp])
 (defn set-last-notification-timestamp [system timestamp]
   (assoc-in system (last-notification-timestamp-accessor) timestamp))
 (defn last-notification-timestamp [system]
   (get-in system (last-notification-timestamp-accessor)))
 
-
-(defn- tray-icon-accessor []
-  [:ui :tray-icon])
 (defn set-tray-icon
   "Updates the system by adding a tray icon."
   [system tray-icon]

@@ -106,7 +106,8 @@
       (when (= (.getButton event) MouseEvent/BUTTON1)
         (condp = (.getClickCount event)
           1 (sgl-callback)
-          2 (dbl-callback))))))
+          2 (dbl-callback)
+          nil)))))
 
 (defn create-menu-item [label callback]
   (let [menu (MenuItem. label)]

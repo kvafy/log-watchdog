@@ -41,7 +41,9 @@
 
 (deftest create-test
   (testing "creating a system based on valid configuration yields a valid system"
-    (s/validate validators/system (system/create config-test/valid-configuration))))
+    (let [created-system (system/create config-test/valid-configuration)]
+      (s/validate validators/system created-system)
+      (is (= 2 (count (system/file-paths created-system)))))))
 
 
 (deftest file-paths-test
