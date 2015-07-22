@@ -35,15 +35,22 @@
 
 ;; observers of the system state
 
+(defn update-menu-items []
+  )
+
+(defn update-tray-tooltip []
+  )
+
 (defn notify-new-system [prev-system cur-system tray-icon]
   (let [file-paths-with-unacked-alerts (core/file-paths cur-system core/file-has-unacknowledged-alert?)
         unacked-alerts (core/alerts cur-system file-paths-with-unacked-alerts core/unacknowledged-alert?)]
     (let [tooltip (if (empty? file-paths-with-unacked-alerts)
                     "No unacknowledged alerts"
-                    (format "%d unacknowledged %s in: %s"
+                    (format "%d unacknowledged %s in %s %s. Double click to open."
                             (count unacked-alerts)
                             (util/plural-of-word "alert" (count unacked-alerts))
-                            (clojure.string/join ", " file-paths-with-unacked-alerts)))]
+                            (count file-paths-with-unacked-alerts)
+                            (util/plural-of-word "file" (count file-paths-with-unacked-alerts))))]
       (.setToolTip tray-icon tooltip))
     (let [has-new-alert? (core/has-new-alert? prev-system cur-system)
           last-notification-timestamp (:last-notification-timestamp cur-system)
@@ -98,7 +105,7 @@
 (defn register-tray-icon! []
   (let [tray (SystemTray/getSystemTray)
         image (.getImage (Toolkit/getDefaultToolkit)
-                         (resource "icon64.png"))
+                         (resource "icon.png"))
         tray-icon (TrayIcon. image)
         ack-all-alerts-menu (create-menu-item "Acknowledge all alerts" ack-all-alerts)
         exit-menu (create-menu-item "Exit" exit)
