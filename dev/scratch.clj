@@ -1,7 +1,7 @@
 (ns scratch
   (:require [clojure.repl :refer :all]
             [clojure.tools.namespace.repl :refer [refresh]]
-            [log-watchdog.core :as core]
+            [log-watchdog.system :as system]
             [log-watchdog.config :as config]
             [log-watchdog.ui :as ui]))
 
@@ -13,27 +13,27 @@
 (config/load-configuration)
 
 ;; creating initial system from configuration
-(core/create-system (config/load-configuration))
+(system/create (config/load-configuration))
 
 ;; test the file-checking functionality
 (let [configuration (config/load-configuration)
-      system (core/create-system configuration)]
-  (core/update-system-by-checking-files system))
+      system-instance (system/create configuration)]
+  (system/check-files system-instance))
 
 
 
 ;; initialize the system
 (let [configuration (config/load-configuration)]
-  (core/reset-system! configuration))
+  (system/reset! configuration))
 
 ;; explicitly invoke single system update
-(swap! core/system core/update-system-by-checking-files)
+(swap! system/system system/check-files)
 
 ;; enable/disable the watcher thread
 (swap! ui/watcher-enabled (fn [state] (not state)))
 
 ;; inspect the system and watcher state
-@core/system
+@system/system
 @ui/watcher-enabled
 
 

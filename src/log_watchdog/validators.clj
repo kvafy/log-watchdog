@@ -13,6 +13,9 @@
 ;
 ;     :last-notification-timestamp <timestamp-ms>
 ;
+;     :ui
+;       {  :tray-icon <instance>}
+;
 ;     :files
 ;       {  "file-path-A"
 ;            { :line-regex "pattern-instance"
@@ -34,10 +37,14 @@
   { :check-interval-ms s/Int
     :nagging-interval-ms s/Int
     :last-notification-timestamp s/Int
+    (s/optional-key :ui)
+      { :tray-icon java.awt.TrayIcon}
     :files
       { s/Str
         { :line-regex s/Regex
           :alerts
             { s/Str
                { :last-seen-timestamp s/Int
-                 :acknowledged s/Bool}}}}})
+                 :acknowledged s/Bool}}
+          (s/optional-key :ui)
+            { :menu-item java.awt.MenuItem}}}})
