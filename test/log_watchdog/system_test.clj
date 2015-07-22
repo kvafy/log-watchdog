@@ -98,11 +98,11 @@
 
 
 (deftest set-last-notification-timestamp-test
-  (let [old-timestamp (:last-notification-timestamp valid-system)
+  (let [old-timestamp (system/last-notification-timestamp valid-system)
         new-timestamp (inc (* 2 old-timestamp))
         new-system (system/set-last-notification-timestamp valid-system new-timestamp)]
     (s/validate validators/system new-system)
-    (is (= new-timestamp (:last-notification-timestamp new-system)))))
+    (is (= new-timestamp (system/last-notification-timestamp new-system)))))
 
 
 (deftest set-tray-icon-test

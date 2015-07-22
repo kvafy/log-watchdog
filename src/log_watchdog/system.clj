@@ -116,6 +116,17 @@
                   [alert-line _] (alerts system [file-path])]
               (vector file-path alert-line)))))
 
+(defn- check-interval-ms-accessor []
+  [:check-interval-ms])
+(defn check-interval-ms [system]
+  (get-in system (check-interval-ms-accessor)))
+
+
+(defn- nagging-interval-ms-accessor []
+  [:nagging-interval-ms])
+(defn nagging-interval-ms [system]
+  (get-in system (nagging-interval-ms-accessor)))
+
 
 (defn- last-notification-timestamp-accessor []
   [:last-notification-timestamp])
