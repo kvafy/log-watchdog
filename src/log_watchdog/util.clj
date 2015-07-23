@@ -4,7 +4,7 @@
   (let [plural-suffix (if (and (not-empty word)
                                (.endsWith word "s"))
                         "es" "s")]
-    (if (> count 1)
+    (if (not= count 1)
       (str word plural-suffix)
       word)))
 
