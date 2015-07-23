@@ -171,11 +171,13 @@
         show-alert-details-menu (create-menu-item "Show alert details" show-alert-details)
         toggle-check-enabled-menu (create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (create-menu-item "Exit" exit)
+        separator-menu (create-menu-item "-" (fn [] nil))
         popup (PopupMenu.)]
     (doto popup
       (.add ack-all-alerts-menu)
       (.add show-alert-details-menu)
       (.add toggle-check-enabled-menu)
+      (.add separator-menu)
       (.add exit-menu))
     (doto tray-icon
       (.setPopupMenu popup)
