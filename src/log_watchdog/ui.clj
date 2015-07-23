@@ -100,14 +100,27 @@
   (proxy [ActionListener] []
     (actionPerformed [event] (callback))))
 
-(defn create-mouse-listener [sgl-callback dbl-callback]
-  (proxy [MouseAdapter] []
-    (mouseClicked [event]
-      (when (= (.getButton event) MouseEvent/BUTTON1)
-        (condp = (.getClickCount event)
-          1 (sgl-callback)
-          2 (dbl-callback)
-          nil)))))
+(defn create-mouse-listener [& options]
+  (let [no-op (fn [] nil)
+        callback-map (into {:sgl-callback no-op :dbl-callback no-op :mdl-callback no-op :enter-callback no-op}
+                           (apply hash-map options))
+        {:keys [sgl-callback dbl-callback mdl-callback enter-callback]} callback-map]
+    (proxy [MouseAdapter] []
+      (mouseClicked [event]
+        (let [click-count (.getClickCount event)]
+          (condp = (.getButton event)
+            MouseEvent/BUTTON1
+              (condp = click-count
+                ; this doesn't really work well in Java...
+                1 (sgl-callback)
+                2 (dbl-callback)
+                :else nil)
+            MouseEvent/BUTTON2
+              (when (= click-count 1)
+                (mdl-callback))
+            nil)))
+      (mouseEntered [event]
+        (enter-callback)))))
 
 (defn create-menu-item [label callback]
   (let [menu (MenuItem. label)]
@@ -144,9 +157,9 @@
     (.add popup exit-menu)
     (.setPopupMenu tray-icon popup)
     (.setImageAutoSize tray-icon true)
-    ;(.addActionListener tray-icon (create-action-listener open-files-with-alerts))
-    (.addMouseListener tray-icon (create-mouse-listener (fn [] (show-balloon-notification! @system/system false))
-                                                        open-files-with-alerts))
+    (.addActionListener tray-icon (create-action-listener open-files-with-alerts))
+    (.addMouseListener tray-icon (create-mouse-listener :mdl-callback
+                                                        (fn [] (show-balloon-notification! @system/system false))))
     (.add tray tray-icon)
     (swap! system/system system/set-tray-icon tray-icon)))
 
