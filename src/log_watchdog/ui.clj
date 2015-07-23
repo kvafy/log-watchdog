@@ -10,10 +10,11 @@
   (:gen-class)) ; needed for uberjar because this package contains -main function
 
 
-;; periodic actions
+;; UI properties stored in the 'system'
+(def toggle-check-enabled-menu-property :toggle-check-enabled-menu)
 
-; allows to disable the watcher thread from doing any work
-(def watcher-enabled (atom true))
+
+;; periodic actions
 
 (defn start-watcher-thread!
   "Initializes and starts a thread that periodically updates the system by performing checks of watched files."
@@ -21,9 +22,10 @@
   (letfn [(system-updating-fn []
             (loop []
               (let [cur-system @system/system
-                    delay-ms (get-in cur-system [:check-interval-ms])]
-                (when @watcher-enabled
-                  (log/info "Running watcher")
+                    watcher-enabled (system/check-enabled cur-system)
+                    delay-ms (system/check-interval-ms cur-system)]
+                (when watcher-enabled
+                  (log/info "Checking files...")
                   (swap! system/system system/check-files)
                   (log/trace (str @system/system)))
                 (Thread/sleep delay-ms)
@@ -45,8 +47,11 @@
                          (count file-paths-with-unacked-alerts)
                          (util/plural-of-word "file" (count file-paths-with-unacked-alerts))))))
 
-(defn update-menu-items! [info-map]
-  )
+(defn update-menu-items! [{:keys [cur-system unacked-alerts]}]
+  (doto (system/ui-property cur-system toggle-check-enabled-menu-property)
+    (.setLabel (if (system/check-enabled cur-system)
+                 "Disable file checking"
+                 "Enable file checking"))))
 
 (defn show-balloon-notification!
   ([cur-system just-a-nag?]
@@ -138,6 +143,9 @@
 (defn ack-all-alerts []
   (swap! system/system system/acknowledge-alerts))
 
+(defn toggle-check-enabled []
+  (swap! system/system system/toggle-check-enabled))
+
 (defn exit []
   (System/exit 0))
 
@@ -151,17 +159,24 @@
                          (resource "icon.png"))
         tray-icon (TrayIcon. image)
         ack-all-alerts-menu (create-menu-item "Acknowledge all alerts" ack-all-alerts)
+        toggle-check-enabled-menu (create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (create-menu-item "Exit" exit)
         popup (PopupMenu.)]
-    (.add popup ack-all-alerts-menu)
-    (.add popup exit-menu)
-    (.setPopupMenu tray-icon popup)
-    (.setImageAutoSize tray-icon true)
-    (.addActionListener tray-icon (create-action-listener open-files-with-alerts))
-    (.addMouseListener tray-icon (create-mouse-listener :mdl-callback
-                                                        (fn [] (show-balloon-notification! @system/system false))))
-    (.add tray tray-icon)
-    (swap! system/system system/set-tray-icon tray-icon)))
+    (doto popup
+      (.add ack-all-alerts-menu)
+      (.add toggle-check-enabled-menu)
+      (.add exit-menu))
+    (doto tray-icon
+      (.setPopupMenu popup)
+      (.setImageAutoSize true)
+      (.addActionListener (create-action-listener open-files-with-alerts))
+      (.addMouseListener (create-mouse-listener :mdl-callback
+                                                (fn [] (show-balloon-notification! @system/system false)))))
+    (doto tray
+      (.add tray-icon))
+    (swap! system/system system/set-ui-property ack-all-alerts-menu-property ack-all-alerts-menu)
+    (swap! system/system system/set-ui-property toggle-check-enabled-menu-property toggle-check-enabled-menu)
+    (swap! system/system system/set-ui-property tray-icon-property tray-icon)))
 
 
 ;; main entry point

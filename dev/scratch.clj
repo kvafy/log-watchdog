@@ -32,9 +32,8 @@
 ;; enable/disable the watcher thread
 (swap! ui/watcher-enabled (fn [state] (not state)))
 
-;; inspect the system and watcher state
+;; inspect the system state
 @system/system
-@ui/watcher-enabled
 
 
 ;; start the swing UI app

@@ -8,7 +8,8 @@
       {s/Str {:line-regex s/Regex}}})
 
 ; Structure of a system and semantics of its parts:
-;   { :check-interval-ms <timestamp-ms>
+;   { :check-enabled <true/false>
+;     :check-interval-ms <timestamp-ms>
 ;     :nagging-interval-ms <timestamp-ms>
 ;
 ;     :last-notification-timestamp <timestamp-ms>
@@ -34,7 +35,8 @@
 ;   }
 
 (def system
-  { :check-interval-ms s/Int
+  { :check-enabled s/Bool
+    :check-interval-ms s/Int
     :nagging-interval-ms s/Int
     :last-notification-timestamp s/Int
     (s/optional-key :ui)

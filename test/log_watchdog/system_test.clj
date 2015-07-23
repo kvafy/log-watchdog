@@ -10,7 +10,8 @@
 ;; definition of testing systems
 
 (def valid-system
-  { :check-interval-ms 5000
+  { :check-enabled true
+    :check-interval-ms 5000
     :nagging-interval-ms 60000
     :last-notification-timestamp 123456789
     :files
@@ -92,6 +93,8 @@
             (is (contains? new-alerts new-alert-line))
             (is (not (get-in new-alerts [new-alert-line :acknowledged])))))))))
 
+
+;; verify that the system stays in a consistent state wrt. system schema
 
 (deftest acknowledge-alerts-test
   (let [new-system (system/acknowledge-alerts valid-system)]

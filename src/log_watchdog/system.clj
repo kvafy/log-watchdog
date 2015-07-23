@@ -14,6 +14,8 @@
 
 ;; accessors of system properties
 
+(defn- check-enabled-accessor []
+  [:check-enabled])
 (defn- check-interval-ms-accessor []
   [:check-interval-ms])
 (defn- nagging-interval-ms-accessor []
@@ -50,7 +52,8 @@
   "Creates a system instance based on a configuration map as returned by log-watchdog.config/load-configuration."
   [config]
   (let [base-map   (-> {}
-                       (assoc-in (last-notification-timestamp-accessor) 0))
+                       (assoc-in (last-notification-timestamp-accessor) 0)
+                       (assoc-in (check-enabled-accessor) true))
         config-map (-> {}
                        (assoc-in (check-interval-ms-accessor) (get-in config [:check-interval-ms]))
                        (assoc-in (nagging-interval-ms-accessor) (get-in config [:nagging-interval-ms])))
@@ -145,6 +148,13 @@
                   [alert-line _] (alerts system [file-path])]
               (vector file-path alert-line)))))
 
+(defn check-enabled [system]
+  (get-in system (check-enabled-accessor)))
+
+(defn toggle-check-enabled [system]
+  (let [cur-value (get-in system (check-enabled-accessor))]
+    (assoc-in system (check-enabled-accessor) (not cur-value))))
+
 (defn check-interval-ms [system]
   (get-in system (check-interval-ms-accessor)))
 
@@ -163,6 +173,10 @@
 (defn tray-icon
   [system]
   (get-in system (tray-icon-accessor)))
+(defn ui-property [system k]
+  (get-in system (ui-property-accessor k)))
+(defn set-ui-property [system k v]
+  (assoc-in system (ui-property-accessor k) v))
 
 
 ;; comparing systems
