@@ -11,6 +11,23 @@
 (defn current-time-ms []
   (System/currentTimeMillis))
 
+(defn merge-recursive
+  ([m] m)
+  ([m1 m2]
+    (if (empty? m2)
+      m1
+      (let [[k v2] (first m2)
+            v1 (get m1 k)]
+        (if (every? map? [v1 v2])
+          (recur (assoc m1 k (merge-recursive v1 v2))
+                 (dissoc m2 k))
+          (recur (assoc m1 k v2)
+                 (dissoc m2 k))))))
+  ([m1 m2 & maps]
+    (apply merge-recursive
+           (merge-recursive m1 m2)
+           maps)))
+
 
 ; Following code taken from https://gist.github.com/ataggart/377278
 

@@ -54,8 +54,7 @@
         config-map (-> {}
                        (assoc-in (check-interval-ms-accessor) (get-in config [:check-interval-ms]))
                        (assoc-in (nagging-interval-ms-accessor) (get-in config [:nagging-interval-ms])))
-        files-map (apply merge-with ; TODO write a *-level map merge
-                         merge
+        files-map (apply util/merge-recursive
                          (for [file-name (keys (get-in config [:files]))]
                              (assoc-in {} (file-data-accessor file-name) (create-file-data (get-in config [:files file-name :line-regex]) {}))))]
     (-> base-map
