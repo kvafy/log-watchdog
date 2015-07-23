@@ -50,6 +50,9 @@
                          (util/plural-of-word "file" (count file-paths-with-unacked-alerts))))))
 
 (defn update-menu-items! [{:keys [cur-system unacked-alerts]}]
+  (doto (system/ui-property cur-system ack-all-alerts-menu-property)
+    (.setLabel (format "Acknowledge all alerts (%d)" (count unacked-alerts)))
+    (.setEnabled (not (empty? unacked-alerts))))
   (doto (system/ui-property cur-system toggle-check-enabled-menu-property)
     (.setLabel (if (system/check-enabled cur-system)
                  "Disable file checking"
