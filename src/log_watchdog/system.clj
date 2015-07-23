@@ -22,8 +22,8 @@
   [:nagging-interval-ms])
 (defn- last-notification-timestamp-accessor []
   [:last-notification-timestamp])
-(defn- tray-icon-accessor []
-  [:ui :tray-icon])
+(defn- ui-property-accessor [property]
+  [:ui property])
 (defn- files-map-accessor []
   [:files])
 (defn- file-data-accessor [file-path]
@@ -166,13 +166,6 @@
 (defn last-notification-timestamp [system]
   (get-in system (last-notification-timestamp-accessor)))
 
-(defn set-tray-icon
-  "Updates the system by adding a tray icon."
-  [system tray-icon]
-  (assoc-in system (tray-icon-accessor) tray-icon))
-(defn tray-icon
-  [system]
-  (get-in system (tray-icon-accessor)))
 (defn ui-property [system k]
   (get-in system (ui-property-accessor k)))
 (defn set-ui-property [system k v]

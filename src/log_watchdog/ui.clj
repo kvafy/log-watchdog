@@ -11,6 +11,8 @@
 
 
 ;; UI properties stored in the 'system'
+(def tray-icon-property :tray-icon)
+(def ack-all-alerts-menu-property :ack-all-alerts-menu)
 (def toggle-check-enabled-menu-property :toggle-check-enabled-menu)
 
 
@@ -38,7 +40,7 @@
 ;; observers of the system state and reacting to the current state
 
 (defn update-tray-tooltip! [{:keys [cur-system file-paths-with-unacked-alerts unacked-alerts]}]
-  (.setToolTip (system/tray-icon cur-system)
+  (.setToolTip (system/ui-property cur-system tray-icon-property)
                (if (empty? file-paths-with-unacked-alerts)
                  "No unacknowledged alerts"
                  (format "%d unacknowledged %s in %s %s. Double click to open."
@@ -70,7 +72,7 @@
                                   (count file-paths-with-unacked-alerts)
                                   (util/plural-of-word "file" (count file-paths-with-unacked-alerts)))
           balloon-text (clojure.string/join "\n" file-paths-with-unacked-alerts)]
-      (.displayMessage (system/tray-icon cur-system)
+      (.displayMessage (system/ui-property cur-system tray-icon-property)
                        balloon-caption
                        balloon-text
                        TrayIcon$MessageType/WARNING))))

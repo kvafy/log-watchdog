@@ -39,8 +39,7 @@
     :check-interval-ms s/Int
     :nagging-interval-ms s/Int
     :last-notification-timestamp s/Int
-    (s/optional-key :ui)
-      { :tray-icon java.awt.TrayIcon}
+    (s/optional-key :ui) clojure.lang.PersistentArrayMap
     :files
       { s/Str
         { :line-regex s/Regex

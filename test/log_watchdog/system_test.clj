@@ -110,9 +110,9 @@
     (is (= new-timestamp (system/last-notification-timestamp new-system)))))
 
 
-(deftest set-tray-icon-test
+(deftest set-ui-property-test
   (let [image (.getImage (java.awt.Toolkit/getDefaultToolkit)
                          (clojure.java.io/resource "icon.png"))
         tray-icon (java.awt.TrayIcon. image)
-        new-system (system/set-tray-icon valid-system tray-icon)]
+        new-system (system/set-ui-property valid-system :tray-icon tray-icon)]
     (s/validate validators/system new-system)))
