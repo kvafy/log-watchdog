@@ -12,6 +12,7 @@
 
 ;; UI properties stored in the 'system'
 (def tray-icon-property :tray-icon)
+(def show-alert-details-menu-property :show-alert-details-menu)
 (def ack-all-alerts-menu-property :ack-all-alerts-menu)
 (def toggle-check-enabled-menu-property :toggle-check-enabled-menu)
 
@@ -148,6 +149,9 @@
 (defn ack-all-alerts []
   (swap! system/system system/acknowledge-alerts))
 
+(defn show-alert-details []
+  (show-balloon-notification! @system/system false))
+
 (defn toggle-check-enabled []
   (swap! system/system system/toggle-check-enabled))
 
@@ -164,11 +168,13 @@
                          (resource "icon.png"))
         tray-icon (TrayIcon. image)
         ack-all-alerts-menu (create-menu-item "Acknowledge all alerts" ack-all-alerts)
+        show-alert-details-menu (create-menu-item "Show alert details" show-alert-details)
         toggle-check-enabled-menu (create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (create-menu-item "Exit" exit)
         popup (PopupMenu.)]
     (doto popup
       (.add ack-all-alerts-menu)
+      (.add show-alert-details-menu)
       (.add toggle-check-enabled-menu)
       (.add exit-menu))
     (doto tray-icon
@@ -180,6 +186,7 @@
     (doto tray
       (.add tray-icon))
     (swap! system/system system/set-ui-property ack-all-alerts-menu-property ack-all-alerts-menu)
+    (swap! system/system system/set-ui-property show-alert-details-menu-property show-alert-details-menu)
     (swap! system/system system/set-ui-property toggle-check-enabled-menu-property toggle-check-enabled-menu)
     (swap! system/system system/set-ui-property tray-icon-property tray-icon)))
 
