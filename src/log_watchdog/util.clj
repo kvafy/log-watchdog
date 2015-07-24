@@ -12,6 +12,7 @@
   (System/currentTimeMillis))
 
 (defn merge-recursive
+  ([] {})
   ([m] m)
   ([m1 m2]
     (if (empty? m2)
@@ -27,6 +28,14 @@
     (apply merge-recursive
            (merge-recursive m1 m2)
            maps)))
+
+(defn file-name-and-dir [rel-path]
+  (let [file (java.io.File. rel-path)
+        name (.getName file)
+        dir (-> file
+                (.getAbsoluteFile)
+                (.getParent))]
+    [name dir]))
 
 
 ; Following code taken from https://gist.github.com/ataggart/377278

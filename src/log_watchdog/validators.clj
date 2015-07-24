@@ -20,10 +20,10 @@
 ;     :files
 ;       {  "file-path-A"
 ;            { :line-regex "pattern-instance"
+;              :last-check-failed <false/true>
 ;              :alerts
 ;                { "<line1>"
-;                    { :last-seen-timestamp <timestamp-ms>
-;                      :acknowledged <true/false>}
+;                    { :acknowledged <true/false>}
 ;                  ...
 ;                  "<lineN>"
 ;                    { ... }
@@ -43,9 +43,9 @@
     :files
       { s/Str
         { :line-regex s/Regex
+          :last-check-failed s/Bool
           :alerts
             { s/Str
-               { :last-seen-timestamp s/Int
-                 :acknowledged s/Bool}}
+               { :acknowledged s/Bool}}
           (s/optional-key :ui)
             { :menu-item java.awt.MenuItem}}}})

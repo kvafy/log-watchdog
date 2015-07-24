@@ -40,15 +40,21 @@
 
 ;; observers of the system state and reacting to the current state
 
-(defn update-tray-tooltip! [{:keys [cur-system file-paths-with-unacked-alerts unacked-alerts]}]
+(defn update-tray-tooltip! [{:keys [cur-system file-paths-with-unacked-alerts file-paths-with-last-check-failed unacked-alerts]}]
   (.setToolTip (system/ui-property cur-system tray-icon-property)
-               (if (empty? file-paths-with-unacked-alerts)
-                 "No unacknowledged alerts"
-                 (format "%d unacknowledged %s in %s %s. Double click to open."
-                         (count unacked-alerts)
-                         (util/plural-of-word "alert" (count unacked-alerts))
-                         (count file-paths-with-unacked-alerts)
-                         (util/plural-of-word "file" (count file-paths-with-unacked-alerts))))))
+               (if (every? empty? [file-paths-with-unacked-alerts file-paths-with-last-check-failed])
+                     "Everything is fine."
+                     (let [alerts-msg (if (empty? file-paths-with-unacked-alerts)
+                                            ""
+                                            (format "%d unacknowledged %s."
+                                                    (count unacked-alerts)
+                                                    (util/plural-of-word "alert" (count unacked-alerts))))
+                           failed-checks-msg (if (empty? file-paths-with-last-check-failed)
+                                               ""
+                                               (format "%d undreadable %s"
+                                                       (count file-paths-with-last-check-failed)
+                                                       (util/plural-of-word "file" (count file-paths-with-last-check-failed))))]
+                       (clojure.string/join " " (filter #(< 0 (count %)) [alerts-msg failed-checks-msg]))))))
 
 (defn update-menu-items! [{:keys [cur-system unacked-alerts]}]
   (doto (system/ui-property cur-system ack-all-alerts-menu-property)
@@ -62,42 +68,64 @@
 (defn show-balloon-notification!
   ([cur-system just-a-nag?]
     (let [file-paths-with-unacked-alerts (system/file-paths cur-system system/file-has-unacknowledged-alert?)
+          file-paths-with-last-check-failed (system/file-paths cur-system system/file-has-last-check-failed?)
           unacked-alerts (system/alerts cur-system file-paths-with-unacked-alerts system/unacknowledged-alert?)
           info-map {:cur-system cur-system
                     :file-paths-with-unacked-alerts file-paths-with-unacked-alerts
+                    :file-paths-with-last-check-failed file-paths-with-last-check-failed
                     :unacked-alerts unacked-alerts
                     :just-a-nag? just-a-nag?}]
       (show-balloon-notification! info-map)))
-  ([{:keys [cur-system file-paths-with-unacked-alerts unacked-alerts just-a-nag?]}]
-    (let [balloon-caption (format "You%s have %d unacknowledged %s in %d %s"
-                                  (if just-a-nag? " still" "")
+  ([{:keys [cur-system file-paths-with-unacked-alerts file-paths-with-last-check-failed unacked-alerts just-a-nag?]}]
+    (let [balloon-caption (format "%d unacknowledged %s in %d %s. %d unreadable %s."
                                   (count unacked-alerts)
                                   (util/plural-of-word "alert" (count unacked-alerts))
                                   (count file-paths-with-unacked-alerts)
-                                  (util/plural-of-word "file" (count file-paths-with-unacked-alerts)))
-          balloon-text (clojure.string/join "\n" file-paths-with-unacked-alerts)]
+                                  (util/plural-of-word "file" (count file-paths-with-unacked-alerts))
+                                  (count file-paths-with-last-check-failed)
+                                  (util/plural-of-word "file" (count file-paths-with-last-check-failed)))
+          unacked-files-msg (->> file-paths-with-unacked-alerts
+                                (map (fn [file-path]
+                                       (let [[name dir] (util/file-name-and-dir file-path)
+                                             unacked-file-alerts (system/alerts cur-system [file-path] system/unacknowledged-alert?)]
+                                         (format "%s (%d %s) in %s"
+                                                 name
+                                                 (count unacked-file-alerts)
+                                                 (util/plural-of-word "alert" (count unacked-file-alerts))
+                                                 dir))))
+                                (clojure.string/join "\n"))
+          failed-files-msg (->> file-paths-with-last-check-failed
+                                (map (fn [file-path]
+                                       (let [[name dir] (util/file-name-and-dir file-path)]
+                                         (format "%s (check failed) in %s" name dir))))
+                                (clojure.string/join "\n"))
+          balloon-text (clojure.string/join "\n---\n" (filter #(< 0 (count %)) [unacked-files-msg failed-files-msg]))]
       (.displayMessage (system/ui-property cur-system tray-icon-property)
                        balloon-caption
                        balloon-text
                        TrayIcon$MessageType/WARNING))))
 
-(defn maybe-show-balloon-notification! [{:keys [prev-system cur-system file-paths-with-unacked-alerts unacked-alerts] :as info-map}]
+(defn maybe-show-balloon-notification! [{:keys [prev-system cur-system file-paths-with-unacked-alerts file-paths-with-last-check-failed unacked-alerts] :as info-map}]
   (let [has-new-alert? (system/has-new-alert? prev-system cur-system)
+        has-new-failed-file? (system/has-new-failed-file? prev-system cur-system)
         can-nag-now? (< (+ (system/last-notification-timestamp cur-system)
                            (system/nagging-interval-ms cur-system))
                         (util/current-time-ms))]
-    (when (and (not-empty unacked-alerts)
-               (or has-new-alert? can-nag-now?))
+    (when (or has-new-failed-file?
+              (and (not-empty unacked-alerts)
+                   (or has-new-alert? can-nag-now?)))
       (show-balloon-notification! (assoc info-map :just-a-nag? (not has-new-alert?)))
       (swap! system/system system/set-last-notification-timestamp (util/current-time-ms)))))
 
 (defn process-new-system-notification [key system-ref prev-system cur-system]
   ; extract commonly used values into a map and pass that map around
   (let [file-paths-with-unacked-alerts (system/file-paths cur-system system/file-has-unacknowledged-alert?)
+        file-paths-with-last-check-failed (system/file-paths cur-system system/file-has-last-check-failed?)
         unacked-alerts (system/alerts cur-system file-paths-with-unacked-alerts system/unacknowledged-alert?)
         info-map {:prev-system prev-system
                   :cur-system cur-system
                   :file-paths-with-unacked-alerts file-paths-with-unacked-alerts
+                  :file-paths-with-last-check-failed file-paths-with-last-check-failed
                   :unacked-alerts unacked-alerts}]
     (update-tray-tooltip! info-map)
     (update-menu-items! info-map)

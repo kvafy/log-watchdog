@@ -40,12 +40,12 @@
 
 ;; creating (parts of) a system
 
-(defn create-alert-data [timestamp-ms]
-  {:last-seen-timestamp timestamp-ms
-   :acknowledged false})
+(defn create-alert-data []
+  {:acknowledged false})
 
 (defn create-file-data [line-regex alerts]
   {:line-regex line-regex
+   :last-check-failed false
    :alerts alerts})
 
 (defn create
@@ -99,11 +99,24 @@
 (defn file-has-unacknowledged-alert? [[file-path {:keys [alerts]}]]
   (some unacknowledged-alert? alerts))
 
+(defn file-has-last-check-failed? [[file-path {:keys [last-check-failed]}]]
+  last-check-failed)
+
 (defn unacknowledged-alert? [[alert-line alert-data]]
   (not (:acknowledged alert-data)))
 
 
-;; read a system property / update system by an action
+;; update system by an action
+
+(defn- update-alerts [system file-path cur-alert-lines]
+  (let [new-alerts-map (util/merge-recursive (apply util/merge-recursive
+                                               (for [alert-line cur-alert-lines]
+                                                 {alert-line (create-alert-data)}))
+                                             (alerts system
+                                                     [file-path]
+                                                     (fn [[alert-line _]]
+                                                       (contains? (set cur-alert-lines) alert-line))))]
+    (assoc-in system (alerts-map-accessor file-path) new-alerts-map)))
 
 (defn- check-file
   "Checks current alerts in given file and updates part of the system which represents this file."
@@ -111,20 +124,18 @@
   {:pre (contains? system file-path)}
   (try
     (with-open [reader (io/reader file-path)]
-      (let [now (util/current-time-ms)
-            regex (get-in system [:files file-path :line-regex])
+      (let [regex (get-in system (file-property-accessor file-path :line-regex))
             cur-alert-lines (->> (line-seq reader)
                                  (filter #(re-matches regex %)))]
-        (reduce (fn [sys alert-line]
-                  (if (contains? (alerts sys [file-path]) alert-line)
-                    sys
-                    (assoc-in sys (alert-data-accessor file-path alert-line) (create-alert-data now))))
-                system
-                cur-alert-lines)))
+        (-> system
+            (update-alerts file-path cur-alert-lines)
+            (assoc-in (file-property-accessor file-path :last-check-failed) false))))
     (catch java.io.IOException ex
       (do
-        (log/error ex (str "Failed to read file " file-path))
-        system))))
+        (log/warn (format "Failed to read file '%s': %s" file-path ex))
+        (-> system
+            (update-alerts file-path [])
+            (assoc-in (file-property-accessor file-path :last-check-failed) true))))))
 
 (defn check-files
   "Updates the system by checking all files and updating their maps with newly found alert lines."
@@ -161,10 +172,21 @@
 (defn nagging-interval-ms [system]
   (get-in system (nagging-interval-ms-accessor)))
 
-(defn set-last-notification-timestamp [system timestamp]
-  (assoc-in system (last-notification-timestamp-accessor) timestamp))
 (defn last-notification-timestamp [system]
   (get-in system (last-notification-timestamp-accessor)))
+(defn set-last-notification-timestamp [system timestamp]
+  (assoc-in system (last-notification-timestamp-accessor) timestamp))
+
+(defn file-property [system file-path property]
+  (get-in system (file-property-accessor file-path property)))
+(defn set-file-property [system file-path property value]
+  (assoc-in system (file-property-accessor file-path property) value))
+
+(defn alert-property [system file-path alert-line property]
+  (get-in system (alert-property-accessor file-path alert-line property)))
+(defn set-alert-property [system file-path alert-line property value]
+  (assoc-in system (alert-property-accessor file-path alert-line property) value))
+
 
 (defn ui-property [system k]
   (get-in system (ui-property-accessor k)))
@@ -178,3 +200,8 @@
   (let [prev-alert-lines (keys (alerts prev-system))
         cur-alert-lines  (keys (alerts cur-system))]
     (not (every? (set prev-alert-lines) cur-alert-lines))))
+
+(defn has-new-failed-file? [prev-system cur-system]
+  (let [prev-failed-files (file-paths prev-system file-has-last-check-failed?)
+        cur-failed-files (file-paths cur-system file-has-last-check-failed?)]
+    (not (every? (set prev-failed-files) cur-failed-files))))
