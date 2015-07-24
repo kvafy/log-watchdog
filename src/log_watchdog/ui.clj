@@ -12,7 +12,7 @@
 
 ;; UI properties stored in the 'system'
 (def tray-icon-property :tray-icon)
-(def show-alert-details-menu-property :show-alert-details-menu)
+(def show-status-menu-property :show-status-menu)
 (def ack-all-alerts-menu-property :ack-all-alerts-menu)
 (def toggle-check-enabled-menu-property :toggle-check-enabled-menu)
 
@@ -62,11 +62,11 @@
 (defn show-balloon-notification!
   ([cur-system just-a-nag?]
     (let [file-paths-with-unacked-alerts (system/file-paths cur-system system/file-has-unacknowledged-alert?)
-        unacked-alerts (system/alerts cur-system file-paths-with-unacked-alerts system/unacknowledged-alert?)
-        info-map {:cur-system cur-system
-                  :file-paths-with-unacked-alerts file-paths-with-unacked-alerts
-                  :unacked-alerts unacked-alerts
-                  :just-a-nag? just-a-nag?}]
+          unacked-alerts (system/alerts cur-system file-paths-with-unacked-alerts system/unacknowledged-alert?)
+          info-map {:cur-system cur-system
+                    :file-paths-with-unacked-alerts file-paths-with-unacked-alerts
+                    :unacked-alerts unacked-alerts
+                    :just-a-nag? just-a-nag?}]
       (show-balloon-notification! info-map)))
   ([{:keys [cur-system file-paths-with-unacked-alerts unacked-alerts just-a-nag?]}]
     (let [balloon-caption (format "You%s have %d unacknowledged %s in %d %s"
@@ -92,7 +92,7 @@
       (swap! system/system system/set-last-notification-timestamp (util/current-time-ms)))))
 
 (defn process-new-system-notification [key system-ref prev-system cur-system]
-  ; extract commonly used values into a map and pass that map
+  ; extract commonly used values into a map and pass that map around
   (let [file-paths-with-unacked-alerts (system/file-paths cur-system system/file-has-unacknowledged-alert?)
         unacked-alerts (system/alerts cur-system file-paths-with-unacked-alerts system/unacknowledged-alert?)
         info-map {:prev-system prev-system
@@ -149,7 +149,7 @@
 (defn ack-all-alerts []
   (swap! system/system system/acknowledge-alerts))
 
-(defn show-alert-details []
+(defn show-status []
   (show-balloon-notification! @system/system false))
 
 (defn toggle-check-enabled []
@@ -168,14 +168,14 @@
                          (resource "icon.png"))
         tray-icon (TrayIcon. image)
         ack-all-alerts-menu (create-menu-item "Acknowledge all alerts" ack-all-alerts)
-        show-alert-details-menu (create-menu-item "Show alert details" show-alert-details)
+        show-status-menu (create-menu-item "Show status" show-status)
         toggle-check-enabled-menu (create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (create-menu-item "Exit" exit)
         separator-menu (create-menu-item "-" (fn [] nil))
         popup (PopupMenu.)]
     (doto popup
       (.add ack-all-alerts-menu)
-      (.add show-alert-details-menu)
+      (.add show-status-menu)
       (.add toggle-check-enabled-menu)
       (.add separator-menu)
       (.add exit-menu))
@@ -188,7 +188,7 @@
     (doto tray
       (.add tray-icon))
     (swap! system/system system/set-ui-property ack-all-alerts-menu-property ack-all-alerts-menu)
-    (swap! system/system system/set-ui-property show-alert-details-menu-property show-alert-details-menu)
+    (swap! system/system system/set-ui-property show-status-menu-property show-status-menu)
     (swap! system/system system/set-ui-property toggle-check-enabled-menu-property toggle-check-enabled-menu)
     (swap! system/system system/set-ui-property tray-icon-property tray-icon)))
 
