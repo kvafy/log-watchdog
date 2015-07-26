@@ -41,6 +41,20 @@
 
 ;; observers of the system state and reacting to the current state
 
+(defn update-tray-icon! [{:keys [cur-system file-paths-with-unacked-alerts file-paths-with-last-check-failed]}]
+  (let [paused? (not (system/check-enabled cur-system))
+        alert? (not-empty file-paths-with-unacked-alerts)
+        warning? (not-empty file-paths-with-last-check-failed)]
+    (let [tray-icon (system/ui-property cur-system tray-icon-property)
+          icon-name (str "icon"
+                         (if paused? "P" "")
+                         (if alert? "A" "")
+                         (if warning? "W" "")
+                         ".png")
+          icon-image (.getImage (Toolkit/getDefaultToolkit) (resource icon-name))]
+      (doto tray-icon
+        (.setImage icon-image)))))
+
 (defn update-tray-tooltip! [{:keys [cur-system file-paths-with-unacked-alerts file-paths-with-last-check-failed unacked-alerts]}]
   (.setToolTip (system/ui-property cur-system tray-icon-property)
                (if (every? empty? [file-paths-with-unacked-alerts file-paths-with-last-check-failed])
@@ -55,7 +69,7 @@
                                                (format "%d undreadable %s"
                                                        (count file-paths-with-last-check-failed)
                                                        (util/plural-of-word "file" (count file-paths-with-last-check-failed))))]
-                       (clojure.string/join " " (filter #(< 0 (count %)) [alerts-msg failed-checks-msg]))))))
+                       (clojure.string/join " " (filter not-empty [alerts-msg failed-checks-msg]))))))
 
 (defn update-menu-items! [{:keys [cur-system unacked-alerts]}]
   (doto (system/ui-property cur-system ack-all-alerts-menu-property)
@@ -128,6 +142,7 @@
                   :file-paths-with-unacked-alerts file-paths-with-unacked-alerts
                   :file-paths-with-last-check-failed file-paths-with-last-check-failed
                   :unacked-alerts unacked-alerts}]
+    (update-tray-icon! info-map)
     (update-tray-tooltip! info-map)
     (update-menu-items! info-map)
     (maybe-show-balloon-notification! info-map)))
