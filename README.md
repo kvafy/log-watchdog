@@ -20,7 +20,6 @@ The application is fuly configured via file "configuration.edn" that needs to be
 
 ## What is next
 
-* alert aging and cleaning
-* idiomatic use of zippers
+* refactoring
 * ...
 
