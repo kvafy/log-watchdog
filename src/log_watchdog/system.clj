@@ -37,6 +37,39 @@
 (defn- alert-property-accessor [file-path alert-line property]
   (conj (alert-data-accessor file-path alert-line) property))
 
+(defn check-enabled [system]
+  (get-in system (check-enabled-accessor)))
+
+(defn toggle-check-enabled [system]
+  (let [cur-value (get-in system (check-enabled-accessor))]
+    (assoc-in system (check-enabled-accessor) (not cur-value))))
+
+(defn check-interval-ms [system]
+  (get-in system (check-interval-ms-accessor)))
+
+(defn nagging-interval-ms [system]
+  (get-in system (nagging-interval-ms-accessor)))
+
+(defn last-notification-timestamp [system]
+  (get-in system (last-notification-timestamp-accessor)))
+(defn set-last-notification-timestamp [system timestamp]
+  (assoc-in system (last-notification-timestamp-accessor) timestamp))
+
+(defn file-property [system file-path property]
+  (get-in system (file-property-accessor file-path property)))
+(defn set-file-property [system file-path property value]
+  (assoc-in system (file-property-accessor file-path property) value))
+
+(defn alert-property [system file-path alert-line property]
+  (get-in system (alert-property-accessor file-path alert-line property)))
+(defn set-alert-property [system file-path alert-line property value]
+  (assoc-in system (alert-property-accessor file-path alert-line property) value))
+
+(defn ui-property [system k]
+  (get-in system (ui-property-accessor k)))
+(defn set-ui-property [system k v]
+  (assoc-in system (ui-property-accessor k) v))
+
 
 ;; creating (parts of) a system
 
@@ -158,40 +191,6 @@
             (for [file-path file-paths-to-ack
                   [alert-line _] (alerts system [file-path])]
               (vector file-path alert-line)))))
-
-(defn check-enabled [system]
-  (get-in system (check-enabled-accessor)))
-
-(defn toggle-check-enabled [system]
-  (let [cur-value (get-in system (check-enabled-accessor))]
-    (assoc-in system (check-enabled-accessor) (not cur-value))))
-
-(defn check-interval-ms [system]
-  (get-in system (check-interval-ms-accessor)))
-
-(defn nagging-interval-ms [system]
-  (get-in system (nagging-interval-ms-accessor)))
-
-(defn last-notification-timestamp [system]
-  (get-in system (last-notification-timestamp-accessor)))
-(defn set-last-notification-timestamp [system timestamp]
-  (assoc-in system (last-notification-timestamp-accessor) timestamp))
-
-(defn file-property [system file-path property]
-  (get-in system (file-property-accessor file-path property)))
-(defn set-file-property [system file-path property value]
-  (assoc-in system (file-property-accessor file-path property) value))
-
-(defn alert-property [system file-path alert-line property]
-  (get-in system (alert-property-accessor file-path alert-line property)))
-(defn set-alert-property [system file-path alert-line property value]
-  (assoc-in system (alert-property-accessor file-path alert-line property) value))
-
-
-(defn ui-property [system k]
-  (get-in system (ui-property-accessor k)))
-(defn set-ui-property [system k v]
-  (assoc-in system (ui-property-accessor k) v))
 
 
 ;; comparing systems
