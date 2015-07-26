@@ -163,9 +163,14 @@
         (enter-callback)))))
 
 (defn create-menu-item [label callback]
-  (let [menu (MenuItem. label)]
-    (.addActionListener menu (create-action-listener callback))
-    menu))
+  (let [item (MenuItem. label)]
+    (.addActionListener item (create-action-listener callback))
+    item))
+
+(defn create-menu-label [label]
+  (let [item (MenuItem. label)]
+    (.setEnabled item false)
+    item))
 
 (defn open-files [& files]
   (let [desktop (Desktop/getDesktop)]
@@ -200,14 +205,15 @@
         show-status-menu (create-menu-item "Show status" show-status)
         toggle-check-enabled-menu (create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (create-menu-item "Exit" exit)
-        separator-menu (create-menu-item "-" (fn [] nil))
+        version-menu (create-menu-label (str "Version " (util/project-version)))
         popup (PopupMenu.)]
     (doto popup
       (.add ack-all-alerts-menu)
       (.add show-status-menu)
       (.add toggle-check-enabled-menu)
-      (.add separator-menu)
-      (.add exit-menu))
+      (.addSeparator)
+      (.add exit-menu)
+      (.add version-menu))
     (doto tray-icon
       (.setPopupMenu popup)
       (.setImageAutoSize true)

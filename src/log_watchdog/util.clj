@@ -37,6 +37,10 @@
                 (.getParent))]
     [name dir]))
 
+(defn project-version []
+  ; the project.clj is just a Clojure data file which can be easily read
+  (-> (clojure.java.io/resource "project.clj") slurp read-string (nth 2)))
+
 
 ; Following code taken from https://gist.github.com/ataggart/377278
 
