@@ -6,7 +6,8 @@
             [log-watchdog.util :as util]
             [log-watchdog.config :as config])
   (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu MenuItem Toolkit Desktop]
-           [java.awt.event ActionListener MouseEvent MouseAdapter])
+           [java.awt.event ActionListener MouseEvent MouseAdapter]
+           [javax.swing JOptionPane])
   (:gen-class)) ; needed for uberjar because this package contains -main function
 
 
@@ -221,6 +222,12 @@
     (swap! system/system system/set-ui-property tray-icon-property tray-icon)))
 
 
+;; UI utility functions
+
+(defn show-error-message [title msg]
+  (JOptionPane/showMessageDialog nil msg title JOptionPane/ERROR_MESSAGE))
+
+
 ;; main entry point
 
 (defn -main [& args]
@@ -231,4 +238,8 @@
       (add-watch system/system "ui-system-change-watch" process-new-system-notification)
       (start-watcher-thread!))
     (catch Exception ex
-      (log/error ex "Failed to read the configuration file"))))
+      (log/error ex "Failed to read the configuration file")
+      (show-error-message "Critical error"
+                            (str "Following error occurred while reading the configuration file:"
+                               "\n"
+                               (.toString ex))))))

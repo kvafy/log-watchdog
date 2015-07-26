@@ -1,6 +1,13 @@
 (ns log-watchdog.validators
   (:require [schema.core :as s]))
 
+(def configuration-edn
+  { :check-interval-ms s/Int
+    :nagging-interval-ms s/Int
+    :files
+      { s/Str
+        { :line-regex s/Str}}})
+
 (def configuration
   { :check-interval-ms s/Int
     :nagging-interval-ms s/Int
