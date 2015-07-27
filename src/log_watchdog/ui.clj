@@ -103,16 +103,15 @@
                                 (map (fn [file-path]
                                        (let [[name dir] (util/file-name-and-dir file-path)
                                              unacked-file-alerts (system/alerts cur-system [file-path] system/unacknowledged-alert?)]
-                                         (format "%s (%d %s) in %s"
+                                         (format "%s (%d %s)"
                                                  name
                                                  (count unacked-file-alerts)
-                                                 (util/plural-of-word "alert" (count unacked-file-alerts))
-                                                 dir))))
+                                                 (util/plural-of-word "alert" (count unacked-file-alerts))))))
                                 (clojure.string/join "\n"))
           failed-files-msg (->> file-paths-with-last-check-failed
                                 (map (fn [file-path]
                                        (let [[name dir] (util/file-name-and-dir file-path)]
-                                         (format "%s (check failed) in %s" name dir))))
+                                         (format "%s (check failed)" name))))
                                 (clojure.string/join "\n"))
           balloon-text (clojure.string/join "\n---\n" (filter #(< 0 (count %)) [unacked-files-msg failed-files-msg]))]
       (.displayMessage (system/ui-property cur-system tray-icon-property)
