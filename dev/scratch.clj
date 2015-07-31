@@ -29,8 +29,8 @@
 ;; explicitly invoke single system update
 (swap! system/system system/check-files)
 
-;; enable/disable the watcher thread
-(swap! ui/watcher-enabled (fn [state] (not state)))
+;; enable/disable the file checking
+(swap! system/system system/toggle-check-enabled)
 
 ;; inspect the system state
 @system/system

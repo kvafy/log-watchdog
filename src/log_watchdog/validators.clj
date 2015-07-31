@@ -12,7 +12,7 @@
   { :check-interval-ms s/Int
     :nagging-interval-ms s/Int
     :files
-      {s/Str {:line-regex s/Regex}}})
+      { s/Str {:line-regex s/Regex}}})
 
 ; Structure of a system and semantics of its parts:
 ;   { :check-enabled <true/false>

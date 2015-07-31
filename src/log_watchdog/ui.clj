@@ -21,7 +21,7 @@
 ;; periodic actions
 
 (defn start-watcher-thread!
-  "Initializes and starts a thread that periodically updates the system by performing checks of watched files."
+  "Initializes and starts a thread that periodically updates the system by performing check of watched files."
   []
   (letfn [(system-updating-fn []
             (loop []
@@ -31,7 +31,7 @@
                 (when watcher-enabled
                   (log/info "Checking files...")
                   (swap! system/system system/check-files)
-                  (log/trace (str @system/system)))
+                  (log/trace @system/system))
                 (Thread/sleep delay-ms)
                 (recur))))]
     (doto (Thread. system-updating-fn)
@@ -236,10 +236,12 @@
                                                 (fn [] (show-balloon-notification! @system/system false)))))
     (doto tray
       (.add tray-icon))
-    (swap! system/system system/set-ui-property ack-all-alerts-menu-property ack-all-alerts-menu)
-    (swap! system/system system/set-ui-property show-status-menu-property show-status-menu)
-    (swap! system/system system/set-ui-property toggle-check-enabled-menu-property toggle-check-enabled-menu)
-    (swap! system/system system/set-ui-property tray-icon-property tray-icon)))
+    (swap! system/system (fn [sys]
+                           (-> sys
+                               (system/set-ui-property ack-all-alerts-menu-property ack-all-alerts-menu)
+                               (system/set-ui-property show-status-menu-property show-status-menu)
+                               (system/set-ui-property toggle-check-enabled-menu-property toggle-check-enabled-menu)
+                               (system/set-ui-property tray-icon-property tray-icon))))))
 
 
 ;; UI utility functions
@@ -260,6 +262,4 @@
     (catch Exception ex
       (log/error ex "Failed to read the configuration file")
       (show-error-message "Critical error"
-                            (str "Following error occurred while reading the configuration file:"
-                               "\n"
-                               (.toString ex))))))
+                          (format "Following error occurred while reading the configuration file:\n%s" (.toString ex))))))

@@ -93,9 +93,7 @@
         files-map (apply util/merge-recursive
                          (for [file-name (keys (get-in config [:files]))]
                              (assoc-in {} (file-data-accessor file-name) (create-file-data (get-in config [:files file-name :line-regex]) {}))))]
-    (-> base-map
-        (into config-map)
-        (into files-map))))
+    (util/merge-recursive base-map config-map files-map)))
 
 (defn reset!
   "Clears current state of the 'system' atom and sets up a fresh system in which no check has been performed yet."
@@ -184,7 +182,6 @@
   (let [file-paths-to-ack (if (empty? file-paths-to-ack)
                      (file-paths system)
                      file-paths-to-ack)]
-    ;TODO use zippers for more idiomatic solution
     (reduce (fn [sys [file-path alert-line]]
               (assoc-in sys (alert-property-accessor file-path alert-line :acknowledged) true))
             system
