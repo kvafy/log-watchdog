@@ -1,15 +1,14 @@
-(ns log-watchdog.util)
-
-(defn plural-of-word [word count]
-  (let [plural-suffix (if (and (not-empty word)
-                               (.endsWith word "s"))
-                        "es" "s")]
-    (if (not= count 1)
-      (str word plural-suffix)
-      word)))
+(ns log-watchdog.utils)
 
 (defn current-time-ms []
   (System/currentTimeMillis))
+
+(defn uuid []
+  (java.util.UUID/randomUUID))
+
+(defn project-version []
+  ; the project.clj is just a Clojure data file which can be easily read
+  (-> (clojure.java.io/resource "project.clj") slurp read-string (nth 2)))
 
 (defn merge-recursive [& maps]
   (reduce (fn [m1 m2]
@@ -24,18 +23,6 @@
                          (dissoc m2 k))))))
           {}
           maps))
-
-(defn file-name-and-dir [rel-path]
-  (let [file (java.io.File. rel-path)
-        name (.getName file)
-        dir (-> file
-                (.getAbsoluteFile)
-                (.getParent))]
-    [name dir]))
-
-(defn project-version []
-  ; the project.clj is just a Clojure data file which can be easily read
-  (-> (clojure.java.io/resource "project.clj") slurp read-string (nth 2)))
 
 
 ; Following code taken from https://gist.github.com/ataggart/377278

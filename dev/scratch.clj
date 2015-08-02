@@ -1,9 +1,12 @@
 (ns scratch
   (:require [clojure.repl :refer :all]
             [clojure.tools.namespace.repl :refer [refresh]]
-            [log-watchdog.system :as system]
+            [log-watchdog.system.core :as system-core]
+            [log-watchdog.system.helpers :as system-helpers]
+            [log-watchdog.system.state :as system-state]
             [log-watchdog.config :as config]
-            [log-watchdog.ui :as ui]))
+            [log-watchdog.ui.core :as ui-core]
+            [clojure.java.io]))
 
 
 ;; refresh the required namespaces if they changed
@@ -13,31 +16,30 @@
 (config/load-configuration)
 
 ;; creating initial system from configuration
-(system/create (config/load-configuration))
+(system-core/create-system (config/load-configuration))
 
 ;; test the file-checking functionality
 (let [configuration (config/load-configuration)
-      system-instance (system/create configuration)]
-  (system/check-files system-instance))
-
+      system-instance (system-core/create-system configuration)]
+  (system-helpers/check-files system-instance))
 
 
 ;; initialize the system
 (let [configuration (config/load-configuration)]
-  (system/reset! configuration))
+  (system-state/reset-system! configuration))
 
 ;; explicitly invoke single system update
-(swap! system/system system/check-files)
+(swap! system-state/system system-helpers/check-files)
 
 ;; enable/disable the file checking
-(swap! system/system system/toggle-check-enabled)
+(swap! system-state/system system-helpers/toggle-check-enabled)
 
 ;; inspect the system state
-@system/system
+@system-state/system
 
 
 ;; start the swing UI app
-(ui/-main)
+(ui-core/-main)
 
 ;; stop the app
 (System/exit 0)
