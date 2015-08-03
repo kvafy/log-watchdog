@@ -12,6 +12,21 @@
   (:gen-class)) ; needed for uberjar because this package contains -main function
 
 
+;; CRUD for ui objects represented as entities of the system
+
+(defn create-ui-entity [entity-type value]
+  (system-core/create-entity entity-type
+                             :value value))
+
+(defn ui-entity-value
+  "A 'ui property' is a singleton entity holding instance of a UI Java object.
+  This accessor extracts instance of the Java object from the entity."
+  [system entity-type]
+  (let [[entity-id entity-data] (first (system-core/query system
+                                                          (system-core/entity-pred :type (partial = entity-type))))]
+    (get entity-data :value)))
+
+
 ;; periodic actions
 
 (defn start-watcher-thread!
@@ -33,23 +48,6 @@
 
 ;; observers of the system state and reacting to the current state
 
-;;TODO this should go somewhere else
-
-(defn- ui-property-instance [system entity-type]
-  (let [[entity-id entity-data] (first (system-core/query system
-                                                          (system-core/entity-pred :type (partial = entity-type))))]
-    (get entity-data :value)))
-
-(defn- tray-icon-instance [system]
-  (ui-property-instance system :ui-tray-icon))
-
-(defn- ack-all-alerts-menu-button-instance [system]
-  (ui-property-instance system :ui-ack-all-alerts-menu-button))
-
-(defn- toggle-check-enabled-menu-button-instance [system]
-  (ui-property-instance system :ui-toggle-check-enabled-menu-button))
-
-
 (defn update-tray-icon! [{:keys [cur-system config-data unacked-files failed-files]}]
   (let [paused? (not (get config-data :check-enabled))
         any-alert? (not-empty unacked-files)
@@ -59,11 +57,11 @@
                          (if any-alert? "A" "")
                          (if any-warning? "W" "")
                          ".png")]
-      (.setImage (tray-icon-instance cur-system)
+      (.setImage (ui-entity-value cur-system :ui-tray-icon)
                  (ui-utils/load-image icon-name)))))
 
 (defn update-tray-tooltip! [{:keys [cur-system unacked-files failed-files unacked-alerts]}]
-  (.setToolTip (tray-icon-instance cur-system)
+  (.setToolTip (ui-entity-value cur-system :ui-tray-icon)
                (if (every? empty? [unacked-files failed-files])
                      "Everything is fine."
                      (let [alerts-msg (if (empty? unacked-files)
@@ -79,10 +77,10 @@
                        (clojure.string/join " " (filter not-empty [alerts-msg failed-checks-msg]))))))
 
 (defn update-menu-items! [{:keys [cur-system config-data unacked-alerts]}]
-  (doto (ack-all-alerts-menu-button-instance cur-system)
+  (doto (ui-entity-value cur-system :ui-ack-all-alerts-menu-button)
     (.setLabel (format "Acknowledge all alerts (%d)" (count unacked-alerts)))
     (.setEnabled (not (empty? unacked-alerts))))
-  (doto (toggle-check-enabled-menu-button-instance cur-system)
+  (doto (ui-entity-value cur-system :ui-toggle-check-enabled-menu-button)
     (.setLabel (if (get config-data :check-enabled)
                  "Disable file checking"
                  "Enable file checking"))))
@@ -121,7 +119,7 @@
                                          (format "%s (check failed)" name))))
                                 (clojure.string/join "\n"))
           balloon-text (clojure.string/join "\n---\n" (filter #(< 0 (count %)) [unacked-files-msg failed-files-msg]))]
-      (.displayMessage (tray-icon-instance cur-system)
+      (.displayMessage (ui-entity-value cur-system :ui-tray-icon)
                        balloon-caption
                        balloon-text
                        TrayIcon$MessageType/WARNING))))
@@ -198,12 +196,9 @@
       (.add tray-icon))
     (swap! system-state/system (fn [sys]
                                  (-> sys
-                                     (system-core/add-entity (system-core/create-entity :ui-tray-icon
-                                                                                        :value tray-icon))
-                                     (system-core/add-entity (system-core/create-entity :ui-ack-all-alerts-menu-button
-                                                                                        :value ack-all-alerts-menu))
-                                     (system-core/add-entity (system-core/create-entity :ui-toggle-check-enabled-menu-button
-                                                                                        :value toggle-check-enabled-menu)))))))
+                                     (system-core/add-entity (create-ui-entity :ui-tray-icon tray-icon))
+                                     (system-core/add-entity (create-ui-entity :ui-ack-all-alerts-menu-button ack-all-alerts-menu))
+                                     (system-core/add-entity (create-ui-entity :ui-toggle-check-enabled-menu-button toggle-check-enabled-menu)))))))
 
 
 ;; main entry point

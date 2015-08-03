@@ -4,6 +4,10 @@
             [clojure.tools.logging :as log]
             [log-watchdog.system.core :as core]))
 
+;; Contains complex or specific operations to read/modify a system.
+;; These operations don't logically belong into the log-watchdog.system.core
+;; namespace which is minimalistic.
+
 
 ;; read operations
 

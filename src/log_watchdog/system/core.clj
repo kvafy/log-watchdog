@@ -2,7 +2,8 @@
   (:require [log-watchdog.utils :as utils]))
 
 
-;; A 'system' is a data structure holding complete application state in form of uuid->entity map.
+;; An 'entity' is a 2-tuple (uuid entity-data).
+;; A 'system' is a uuid->entity-data map holding complete application state.
 ;; This namespace defines CRUD operations for (parts of) systems.
 
 
@@ -41,7 +42,7 @@
 
 (defn entity-pred
   "Expects sequence of keys and value predicates 'k vpred k vpred k vpred ...'.
-  Creates a composite predicate that returns true for entities for which
+  Creates a composite predicate that returns true for entity such that
   all '(vpred (get entity-data k))' return true."
   [& kvpreds]
   (fn [[entity-id entity-data]]

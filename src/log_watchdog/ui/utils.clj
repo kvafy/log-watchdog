@@ -43,6 +43,9 @@
     (.setEnabled item false)
     item))
 
+(defn load-image [resource-name]
+  (.getImage (Toolkit/getDefaultToolkit) (clojure.java.io/resource resource-name)))
+
 (defn show-error-message [title msg]
   (JOptionPane/showMessageDialog nil msg title JOptionPane/ERROR_MESSAGE))
 
@@ -50,9 +53,6 @@
   (let [desktop (Desktop/getDesktop)]
     (doseq [file files]
       (.open desktop file))))
-
-(defn load-image [resource-name]
-  (.getImage (Toolkit/getDefaultToolkit) (clojure.java.io/resource resource-name)))
 
 
 ;; other utilities

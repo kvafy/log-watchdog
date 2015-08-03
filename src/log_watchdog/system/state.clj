@@ -1,7 +1,9 @@
 (ns log-watchdog.system.state
   (:require [log-watchdog.system.core :as system-core]))
 
-; atom holding instance of the system
+; Atom holding instance of the system.
+; State of the system is modified using functions in 'log-watchdog.system.core'
+; and 'log-watchdog.system.helpers' namespaces.
 (def system (atom nil))
 
 (defn reset-system!
