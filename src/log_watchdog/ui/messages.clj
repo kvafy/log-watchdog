@@ -50,7 +50,7 @@
 (defn long-status-without-groups [{:keys [unacked-alerts-by-file unreadable-files-by-group]}]
   (let [unacked-files-msg (->> (keys unacked-alerts-by-file)
                                (map (fn [[file-id file-data :as file-entity]]
-                                      (let [[name dir] (ui-utils/file-name-and-dir (get file-data :file))]
+                                      (let [[name dir] (ui-utils/file-name-and-dir (:file file-data))]
                                         (format "%s (%s)"
                                                 name
                                                 (ui-utils/plural-of-word (count (get unacked-alerts-by-file file-entity))
@@ -58,7 +58,7 @@
                                (clojure.string/join "\n"))
         unreadable-files-msg (->> (apply concat (vals unreadable-files-by-group))
                                   (map (fn [[file-id file-data]]
-                                         (let [[name dir] (ui-utils/file-name-and-dir (get file-data :file))]
+                                         (let [[name dir] (ui-utils/file-name-and-dir (:file file-data))]
                                            (format "%s (unreadable)" name))))
                                   (clojure.string/join "\n"))]
     (clojure.string/join "\n-----\n" (filter not-empty [unacked-files-msg unreadable-files-msg]))))

@@ -122,7 +122,7 @@
                                                                                   :matched-line (partial = tested-line)))]
               (is (= 1 (count new-alert-query-result)))
               (let [[new-alert-id new-alert-data] (first new-alert-query-result)]
-                (is (false? (get new-alert-data :acknowledged))))))))))
+                (is (false? (:acknowledged new-alert-data))))))))))
   (testing "Existing alerts are updated"
     (let [tested-file-id file1-id
           tested-line1 "line-1"
@@ -146,22 +146,22 @@
   (testing "File becomes unavailable"
     (let [[tested-file-id tested-file-data-orig] (core/query-by-id system-orig file1-id)]
       ; pre-condition
-      (is (false? (get tested-file-data-orig :last-check-failed)))
+      (is (false? (:last-check-failed tested-file-data-orig)))
       (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (throw (java.io.IOException. "")))}
         (fn []
           (let [system-new (helpers/check-files system-orig)
                 [_ tested-file-data-new] (core/query-by-id system-new tested-file-id)]
             ; post-condition
             (validators/validate-system system-new)
-            (is (true? (get tested-file-data-new :last-check-failed))))))))
+            (is (true? (:last-check-failed tested-file-data-new))))))))
   (testing "File becomes available"
     (let [[tested-file-id tested-file-data-orig] (core/query-by-id system-orig file2-id)]
       ; pre-condition
-      (is (true? (get tested-file-data-orig :last-check-failed)))
+      (is (true? (:last-check-failed tested-file-data-orig)))
       (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (BufferedReader. (StringReader. "")))}
         (fn []
           (let [system-new (helpers/check-files system-orig)
                 [_ tested-file-data-new] (core/query-by-id system-new tested-file-id)]
             ; post-conditions
             (validators/validate-system system-new)
-            (is (false? (get tested-file-data-new :last-check-failed)))))))))
+            (is (false? (:last-check-failed tested-file-data-new)))))))))

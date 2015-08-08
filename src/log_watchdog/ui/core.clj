@@ -36,11 +36,11 @@
   (letfn [(system-updating-fn []
             (loop []
               (let [config-data (system-helpers/configuration-data @system-state/system)]
-                (when (get config-data :check-enabled)
+                (when (:check-enabled config-data)
                   (log/info "Checking files...")
                   (swap! system-state/system system-helpers/check-files)
                   (log/trace @system-state/system))
-                (Thread/sleep (get config-data :check-interval-ms))
+                (Thread/sleep (:check-interval-ms config-data))
                 (recur))))]
     (doto (Thread. system-updating-fn)
       (.setDaemon true)
@@ -49,9 +49,9 @@
 
 ;; observers of the system state and reacting to the current state
 
-(defn update-tray-icon! [{:keys [cur-system config-data unacked-files unreadable-files]}]
-  (let [paused? (not (get config-data :check-enabled))
-        any-alert? (not-empty unacked-files)
+(defn update-tray-icon! [{:keys [cur-system config-data unacked-alerts unreadable-files]}]
+  (let [paused? (not (:check-enabled config-data))
+        any-alert? (not-empty unacked-alerts)
         any-warning? (not-empty unreadable-files)]
     (let [icon-name (str "icon" (if paused? "P" "") (if any-alert? "A" "") (if any-warning? "W" "") ".png")]
       (.setImage (ui-entity-value cur-system :ui-tray-icon)
@@ -66,7 +66,7 @@
     (.setLabel (format "Acknowledge all alerts (%d)" (count unacked-alerts)))
     (.setEnabled (not (empty? unacked-alerts))))
   (doto (ui-entity-value cur-system :ui-toggle-check-enabled-menu-button)
-    (.setLabel (if (get config-data :check-enabled)
+    (.setLabel (if (:check-enabled config-data)
                  "Disable file checking"
                  "Enable file checking"))))
 
@@ -80,7 +80,7 @@
   (let [has-new-alert? (system-helpers/has-new-alert? prev-system cur-system)
         has-new-unreadable-file? (system-helpers/has-new-unreadable-file? prev-system cur-system)
         can-nag-now? (< (+ (system-helpers/last-notification-timestamp cur-system)
-                           (get config-data :nagging-interval-ms))
+                           (:nagging-interval-ms config-data))
                         (utils/current-time-ms))]
     (when (or has-new-unreadable-file?
               (and (not-empty unacked-alerts)
@@ -131,7 +131,7 @@
 (defn open-files-with-alerts []
   (let [unacked-alerts-by-file (system-helpers/unacknowledged-alerts-by-file @system-state/system)
         unacked-files (keys unacked-alerts-by-file)
-        unacked-file-paths (map (fn [[file-id file-data]] (get file-data :file)) unacked-files)]
+        unacked-file-paths (map (fn [[_ file-data]] (:file file-data)) unacked-files)]
     (apply ui-utils/open-files unacked-file-paths)))
 
 (defn initialize-ui! []
