@@ -7,17 +7,22 @@
 (def config-file "configuration.edn")
 
 (defn load-configuration
-  "Loads the configuration, either from the default file, or from a given EDN string.
+  "Loads the configuration, either from the default file, or from a given EDN string,
+  adding default values when not specified.
+
   Returns the following map:
     { :check-interval-ms <value>
       :nagging-interval-ms <value>
       :files
-        { <file-path-1> { :line-regex <pattern>}
+        { <file-path-1>
+          { :line-regex <pattern>
+            :file-group <string/nil>}
           ...
         }
     }.
+
   Throws an exception if the configuration cannot be read as edn or the edn doesn't
-  meet criteria of the validator."
+  meet criteria of the schema validator."
   ([]
     (try
       (load-configuration (slurp config-file))
@@ -26,12 +31,11 @@
   ([edn-string]
     (let [raw-edn (clojure.edn/read-string edn-string)]
       (s/validate validators/configuration-edn raw-edn)
-      (let [check-interval-ms (long (:check-interval-ms raw-edn))
-            nagging-interval-ms (long (:nagging-interval-ms raw-edn))
-            files-map (into {}
+      (let [files-map (into {}
                             (for [file-name (keys (get-in raw-edn [:files]))]
-                              (let [pattern (re-pattern (get-in raw-edn [:files file-name :line-regex]))]
-                                {file-name {:line-regex pattern}})))]
-        {:check-interval-ms check-interval-ms
-         :nagging-interval-ms nagging-interval-ms
+                              (let [pattern (re-pattern (get-in raw-edn [:files file-name :line-regex]))
+                                    file-group (get-in raw-edn [:files file-name :file-group] nil)]
+                                {file-name {:line-regex pattern :file-group file-group}})))]
+        {:check-interval-ms (long (:check-interval-ms raw-edn))
+         :nagging-interval-ms (long (:nagging-interval-ms raw-edn))
          :files files-map}))))

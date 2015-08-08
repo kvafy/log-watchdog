@@ -8,13 +8,16 @@
     :nagging-interval-ms s/Int
     :files
       { s/Str
-        { :line-regex s/Str}}})
+        { :line-regex s/Str
+          (s/optional-key :file-group) s/Str}}})
 
 (def configuration
   { :check-interval-ms s/Int
     :nagging-interval-ms s/Int
     :files
-      { s/Str {:line-regex s/Regex}}})
+      { s/Str
+        { :line-regex s/Regex
+          :file-group (s/maybe s/Str)}}})
 
 
 ;; Validators for system entities
@@ -38,7 +41,12 @@
   { :type s/Keyword
     :file java.io.File
     :line-regex s/Regex
-    :last-check-failed s/Bool})
+    :last-check-failed s/Bool
+    :watched-file-group-id s/Uuid})
+
+(defmethod entity-validator :watched-file-group [entity]
+  { :type s/Keyword
+    :name (s/maybe s/Str)}) ; default file group has nil for name
 
 (defmethod entity-validator :alert [entity]
   { :type s/Keyword

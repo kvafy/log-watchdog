@@ -21,18 +21,25 @@
         unacked-file-ids (map first unacked-files)]
     (is (= #{file1-id file2-id} (set unacked-file-ids)))))
 
+(deftest unreadable-files-test
+  (let [unreadable-files (helpers/unreadable-files system-orig)
+        unreadable-file-ids (map first unreadable-files)]
+    (is (= #{file2-id} (set unreadable-file-ids)))))
+
+(deftest referenced-entity-test
+  (let [alert-entity [alert1-id (get system-orig alert1-id)]
+        file-entity  (helpers/referenced-entity system-orig alert-entity :watched-file-id)
+        group-entity (helpers/referenced-entity system-orig alert-entity :watched-file-id :watched-file-group-id)]
+    (is (= [file1-id (get system-orig file1-id)] file-entity))
+    (is (= [file-group1-id (get system-orig file-group1-id)] group-entity))))
+
+
 (deftest toggle-check-enabled-test
   (let [system-new (helpers/toggle-check-enabled system-orig)]
     (validators/validate-system system-new)
     (let [[_ cfg-data-orig] (first (core/query system-orig (core/entity-pred :type (partial = :configuration))))
           [_ cfg-data-new]  (first (core/query system-new  (core/entity-pred :type (partial = :configuration))))]
       (is (not= (get cfg-data-orig :check-enabled) (get cfg-data-new :check-enabled))))))
-
-(deftest files-having-last-check-failed-test
-  (let [failed-files (helpers/files-having-last-check-failed system-orig)
-        failed-file-ids (map first failed-files)]
-    (is (= #{file2-id} (set failed-file-ids)))))
-
 
 (deftest acknowledge-alerts-test
   (let [system-new (helpers/acknowledge-alerts system-orig [file1-id file2-id])]

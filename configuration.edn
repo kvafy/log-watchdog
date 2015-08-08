@@ -4,8 +4,11 @@
 
   :files
     { "test/resources/errors.log"
-        { :line-regex "^ERROR.*$" }
+        { :line-regex "^ERROR.*$"
+          :file-group "A"
+          }
       "/home/kvafy/programming/clojure/log-watchdog/test/resources/warns.log"
-        { :line-regex "^WARN.*$"}
+        { :line-regex "^WARN.*$"
+          :file-group "B"}
     }
 }

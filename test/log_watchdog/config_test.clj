@@ -10,7 +10,7 @@
      :nagging-interval-ms 60000
      :files
        { \"file1\"
-           { :line-regex \"^ERROR.*$\" }
+           { :line-regex \"^ERROR.*$\" :file-group \"file-group-1\" }
          \"file2\"
            { :line-regex \"^WARN.*$\"}
        }
@@ -22,13 +22,13 @@
     :nagging-interval-ms 60000
     :files
       { "file1"
-          { :line-regex #"^ERROR.*$"}
+          { :line-regex #"^ERROR.*$" :file-group "file-group-1"}
         "file2"
-          { :line-regex #"^WARN.*$"}}})
+          { :line-regex #"^WARN.*$" :file-group nil}}})
 
 
 (deftest configuration-validator-test
-  (testing "valid configuration is accepted by the validator"
+  (testing "valid configuration is accepted by the validator (failure means either the validator or the valid-configuration is off)"
     (s/validate validators/configuration valid-configuration))
   (testing "zero files is a valid scenario"
     (s/validate validators/configuration (assoc valid-configuration :files {})))
@@ -49,4 +49,6 @@
       (is (= 5000 (:check-interval-ms cfg)))
       (is (= 60000 (:nagging-interval-ms cfg)))
       (is (= 2 (count (:files cfg))))
-      (is (= #{"file1" "file2"} (set (keys (:files cfg))))))))
+      (is (= #{"file1" "file2"} (set (keys (:files cfg)))))
+      (is (= "file-group-1" (get-in cfg [:files "file1" :file-group])))
+      (is (= nil (get-in cfg [:files "file2" :file-group]))))))

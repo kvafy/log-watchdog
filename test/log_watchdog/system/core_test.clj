@@ -13,6 +13,8 @@
 (def config-id (utils/uuid))
 (def file1-id (utils/uuid))
 (def file2-id (utils/uuid))
+(def file-group1-id (utils/uuid))
+(def file-group-default-id (utils/uuid))
 (def alert1-id (utils/uuid))
 (def alert2-id (utils/uuid))
 (def alert3-id (utils/uuid))
@@ -30,7 +32,8 @@
       { :type :watched-file
         :file (java.io.File. "file-path-1")
         :line-regex #".*"
-        :last-check-failed false}
+        :last-check-failed false
+        :watched-file-group-id file-group1-id}
     alert1-id
       { :type :alert
         :matched-line "line-1"
@@ -46,7 +49,8 @@
       { :type :watched-file
         :file (java.io.File. "file-path-2")
         :line-regex #".*"
-        :last-check-failed true}
+        :last-check-failed true
+        :watched-file-group-id file-group-default-id}
     alert3-id
       { :type :alert
         :matched-line "line-3"
@@ -57,6 +61,13 @@
         :matched-line "line-4"
         :acknowledged false
         :watched-file-id file2-id}
+
+    file-group1-id
+      { :type :watched-file-group
+        :name "group1"}
+    file-group-default-id
+      { :type :watched-file-group
+        :name nil}
 
     notifications-id
       { :type :notifications

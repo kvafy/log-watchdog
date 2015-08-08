@@ -12,23 +12,32 @@
 (declare add-entity)
 
 (defn create-entity [entity-type & kvs]
-  (into {:type entity-type} (apply hash-map kvs)))
+  (let [entity-id (utils/uuid)
+        entity-data (into {:type entity-type} (apply hash-map kvs))]
+    {entity-id entity-data}))
 
 (defn create-system
   "Creates a system instance based on a configuration map as returned by log-watchdog.config/load-configuration."
   [config]
-  (let [cfg-entity (create-entity :configuration
+  (let [file-names (keys (get-in config [:files]))
+        group-names (set (map #(get-in config [:files % :file-group]) file-names))
+        cfg-entity (create-entity :configuration
                                   :check-interval-ms    (get-in config [:check-interval-ms])
                                   :nagging-interval-ms  (get-in config [:nagging-interval-ms])
                                   :check-enabled        true)
+        group-entities (for [group-name group-names]
+                         (create-entity :watched-file-group
+                                        :name group-name))
+        group-name->group-id (into {} (map (fn [[gid gdata]] {(:name gdata) gid}) (apply merge group-entities)))
+        file-entities (for [file-name file-names]
+                             (create-entity :watched-file
+                                            :file                  (java.io.File. file-name)
+                                            :line-regex            (get-in config [:files file-name :line-regex])
+                                            :last-check-failed     false
+                                            :watched-file-group-id (group-name->group-id (get-in config [:files file-name :file-group]))))
         notifications-entity (create-entity :notifications
                                             :last-notification-timestamp 0N)
-        file-entities (for [file-name (keys (get-in config [:files]))]
-                             (create-entity :watched-file
-                                            :file              (java.io.File. file-name)
-                                            :line-regex        (get-in config [:files file-name :line-regex])
-                                            :last-check-failed false))
-        all-entities (concat [cfg-entity notifications-entity] file-entities)]
+        all-entities (concat [cfg-entity notifications-entity] file-entities group-entities)]
     (reduce add-entity {} all-entities)))
 
 
@@ -53,9 +62,8 @@
 
 ; crUd
 
-(defn add-entity [system entity-data]
-  (let [uuid (utils/uuid)]
-    (assoc system uuid entity-data)))
+(defn add-entity [system entity]
+  (into system entity))
 
 
 ; cruD

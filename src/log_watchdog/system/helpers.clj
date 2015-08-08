@@ -22,11 +22,6 @@
   (let [[config-id config-data] (first (configuration system))]
     config-data))
 
-(defn unacknowledged-alerts [system]
-  (core/query system (core/entity-pred :type (partial = :alert)
-                                       :acknowledged false?)))
-
-
 (defn- files-for-alerts [system alerts]
   (let [file-ids (->> alerts
                       (map (fn [[alert-id alert-data]] (get alert-data :watched-file-id)))
@@ -34,16 +29,67 @@
     (into {} (filter (fn [[file-id _]] (file-ids file-id)) system))))
 
 
-(defn files-having-unacknowledged-alerts [system]
-  (files-for-alerts system (unacknowledged-alerts system)))
+(defn referenced-entity
+  "Crawls the entity graph starting from 'base-entity' which
+  references another entity by key (first referenced-entity-id-keys).
+  Rest of the entities along the dependency graph reference another
+  entities by the rest of the referenced-entity-id-keys.
+  Returns the final entity when no more keys are left."
+  [system base-entity & referenced-entity-id-keys]
+  (if (empty? referenced-entity-id-keys)
+    base-entity
+    (let [[_ base-data] base-entity
+          ref-id (get base-data (first referenced-entity-id-keys))
+          ref-data (get system ref-id)
+          ref-entity [ref-id ref-data]]
+      (recur system ref-entity (next referenced-entity-id-keys)))))
 
+(defn group-entities-by-referenced-entity
+  "Each of the given entities has a 'referenced-entity-id-key' in its data
+  and this key references an entity.
+  The function groups the given entities by referenced entity into a map
+  of form {referenced-entity [entities-to-group]}"
+  [system entities-to-group & referenced-entity-id-keys]
+  (letfn [(grouping-fn [ent]
+            (apply referenced-entity system ent referenced-entity-id-keys))]
+    (group-by grouping-fn entities-to-group)))
 
-(defn files-having-last-check-failed [system]
+(defn unacknowledged-alerts [system]
+  (core/query system (core/entity-pred :type (partial = :alert)
+                                       :acknowledged false?)))
+
+(defn unacknowledged-alerts-by-file
+  "Returns a map {watched-file-entity [alert-entity]}."
+  [system]
+  (group-entities-by-referenced-entity system
+                                       (unacknowledged-alerts system)
+                                       :watched-file-id))
+
+(defn unacknowledged-alerts-by-file-group
+  "Returns a map {watched-file-group-entity [alert-entity]}."
+  [system]
+  (group-entities-by-referenced-entity system
+                                       (unacknowledged-alerts system)
+                                       :watched-file-id :watched-file-group-id))
+
+(defn unreadable-files [system]
   (core/query system (core/entity-pred :type (partial = :watched-file)
                                        :last-check-failed true?)))
 
+(defn unreadable-files-by-file-group
+  "Returns a map {watched-file-group-entity [watched-file-entity]}."
+  [system]
+  (group-entities-by-referenced-entity system
+                                       (unreadable-files system)
+                                       :watched-file-group-id))
 
-;; compare predicates
+(defn uses-defeault-file-group-only? [system]
+  (let [file-groups (core/query system (core/entity-pred :type (partial = :watched-file-group)))
+        file-group-names (map (fn [[_ group-data]] (:name group-data)) file-groups)]
+    (= #{nil} (set file-group-names))))
+
+
+;; systems-comparing predicates
 
 (defn has-new-alert? [prev-system cur-system]
   (let [prev-alerts (core/query prev-system (core/entity-pred :type (partial = :alert)))
@@ -53,13 +99,13 @@
         new-alert-ids (clojure.set/difference (set cur-alert-ids) (set prev-alert-ids))]
     (not-empty new-alert-ids)))
 
-(defn has-new-failed-file? [prev-system cur-system]
-  (let [prev-failed-files (files-having-last-check-failed prev-system)
-        cur-failed-files  (files-having-last-check-failed cur-system)
-        prev-failed-file-ids (map first prev-failed-files)
-        cur-failed-file-ids  (map first cur-failed-files)
-        new-failed-file-ids (clojure.set/difference (set cur-failed-file-ids) (set prev-failed-file-ids))]
-    (not-empty new-failed-file-ids)))
+(defn has-new-unreadable-file? [prev-system cur-system]
+  (let [prev-unreadable-files (unreadable-files prev-system)
+        cur-unreadable-files  (unreadable-files cur-system)
+        prev-unreadable-file-ids (map first prev-unreadable-files)
+        cur-unreadable-file-ids  (map first cur-unreadable-files)
+        new-unreadable-file-ids (clojure.set/difference (set cur-unreadable-file-ids) (set prev-unreadable-file-ids))]
+    (not-empty new-unreadable-file-ids)))
 
 
 ;; update operations

@@ -57,14 +57,17 @@
 
 ;; other utilities
 
-(defn plural-of-word [word count]
-  (let [plural-suffix (if (and (not-empty word)
-                               (.endsWith word "s"))
-                        "es" "s")]
-    (if (not= count 1)
-      (str word plural-suffix)
-      word)))
-
+(defn plural-of-word
+  ([count word]
+    (plural-of-word count nil word))
+  ([count adjective word]
+    (let [plural-suffix (if (and (not-empty word)
+                                 (.endsWith word "s"))
+                          "es" "s")
+          plural-word (if (not= count 1) (str word plural-suffix) word)]
+      (if (nil? adjective)
+        (format "%d %s" count plural-word)
+        (format "%d %s %s" count adjective plural-word)))))
 
 (defn file-name-and-dir [^java.io.File file]
   (let [name (.getName file)
