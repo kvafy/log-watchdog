@@ -45,6 +45,13 @@
             (apply referenced-entity system ent referenced-entity-id-keys))]
     (group-by grouping-fn entities-to-group)))
 
+(defn files-by-file-group
+  "Returns a map {watched-file-group-entity [watched-file-entity]}."
+  [system]
+  (group-entities-by-referenced-entity system
+                                       (core/query system (core/entity-pred :type (partial = :watched-file)))
+                                       :watched-file-group-id))
+
 (defn unacknowledged-alerts [system]
   (core/query system (core/entity-pred :type (partial = :alert)
                                        :acknowledged false?)))

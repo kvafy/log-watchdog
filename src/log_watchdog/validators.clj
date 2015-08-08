@@ -64,9 +64,10 @@
   { :type s/Keyword
     :value java.awt.TrayIcon})
 
-(defmethod entity-validator :ui-ack-all-alerts-menu-button [entity]
+(defmethod entity-validator :ui-ack-alerts-menu-button [entity]
   { :type s/Keyword
-    :value java.awt.MenuItem})
+    :value java.awt.MenuItem
+    :linked-entity-id (s/maybe s/Uuid)})
 
 (defmethod entity-validator :ui-toggle-check-enabled-menu-button [entity]
   { :type s/Keyword

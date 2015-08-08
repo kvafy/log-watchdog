@@ -9,15 +9,15 @@
             [log-watchdog.ui.messages :as messages]
             [log-watchdog.config :as config]
             [log-watchdog.validators :as validators])
-  (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu])
+  (:import [java.awt SystemTray TrayIcon TrayIcon$MessageType PopupMenu Menu])
   (:gen-class)) ; needed for uberjar because this package contains -main function
 
 
 ;; CRUD for ui objects represented as entities of the system
 
-(defn create-ui-entity [entity-type value]
-  (system-core/create-entity entity-type
-                             :value value))
+(defn create-ui-entity [entity-type value & kvs]
+  (apply system-core/create-entity entity-type
+                                   (concat [:value value] kvs)))
 
 (defn ui-entity-value
   "A 'ui property' is a singleton entity holding instance of a UI Java object.
@@ -58,13 +58,33 @@
                  (ui-utils/load-image icon-name)))))
 
 (defn update-tray-tooltip! [{:keys [cur-system] :as info-map}]
-  (.setToolTip (ui-entity-value cur-system :ui-tray-icon)
-               (messages/short-status info-map)))
+  (doto (ui-entity-value cur-system :ui-tray-icon)
+    (.setToolTip (messages/short-status info-map))))
 
-(defn update-menu-items! [{:keys [cur-system config-data unacked-alerts]}]
-  (doto (ui-entity-value cur-system :ui-ack-all-alerts-menu-button)
-    (.setLabel (format "Acknowledge all alerts (%d)" (count unacked-alerts)))
-    (.setEnabled (not (empty? unacked-alerts))))
+(defn update-alert-acknowledging-menu-items! [{:keys [cur-system unacked-alerts unacked-alerts-by-file unacked-alerts-by-group]}]
+  (let [ack-btn-entities (system-core/query cur-system (system-core/entity-pred :type (partial = :ui-ack-alerts-menu-button)))]
+    (doseq [[_ ack-btn-data] ack-btn-entities]
+      (let [[_ linked-entity-data :as linked-entity] (system-core/query-by-id cur-system (:linked-entity-id ack-btn-data))]
+        (condp = (:type linked-entity-data)
+          :watched-file
+            (let [[file-name _] (ui-utils/file-name-and-dir (:file linked-entity-data))
+                  file-alerts (get unacked-alerts-by-file linked-entity)]
+              (doto (:value ack-btn-data)
+                (.setLabel (format "In '%s' file (%d)" file-name (count file-alerts)))
+                (.setEnabled (not (empty? file-alerts)))))
+          :watched-file-group
+            (let [group-name (:name linked-entity-data)
+                  group-alerts (get unacked-alerts-by-group linked-entity)]
+              (doto (:value ack-btn-data)
+                (.setLabel (format "In '%s' group (%d)" group-name (count group-alerts)))
+                (.setEnabled (not (empty? group-alerts)))))
+          ; the 'ack all alerts everywhere' button has no linked entity
+          (doto (:value ack-btn-data)
+            (.setLabel (format "Everywhere (%d)" (count unacked-alerts)))
+            (.setEnabled (not (empty? unacked-alerts)))))))))
+
+(defn update-menu-items! [{:keys [cur-system config-data] :as info-map}]
+  (update-alert-acknowledging-menu-items! info-map)
   (doto (ui-entity-value cur-system :ui-toggle-check-enabled-menu-button)
     (.setLabel (if (:check-enabled config-data)
                  "Disable file checking"
@@ -107,8 +127,11 @@
 
 ;; menu actions
 
-(defn ack-all-alerts []
-  (swap! system-state/system system-helpers/acknowledge-alerts))
+(defn ack-alerts
+  ([]
+    (swap! system-state/system system-helpers/acknowledge-alerts))
+  ([files]
+    (swap! system-state/system system-helpers/acknowledge-alerts files)))
 
 (defn show-status []
   (let [cur-system @system-state/system
@@ -128,24 +151,76 @@
 (defn exit []
   (System/exit 0))
 
-(defn open-files-with-alerts []
+(defn open-all-files-with-alerts []
   (let [unacked-alerts-by-file (system-helpers/unacknowledged-alerts-by-file @system-state/system)
         unacked-files (keys unacked-alerts-by-file)
         unacked-file-paths (map (fn [[_ file-data]] (:file file-data)) unacked-files)]
     (apply ui-utils/open-files unacked-file-paths)))
 
+
+;; UI creation
+
+(defn create-menu-button-entity-to-ack-alerts
+  ([label]
+    (let [menu-item (ui-utils/create-menu-item label (fn [] (ack-alerts)))]
+      (create-ui-entity :ui-ack-alerts-menu-button
+                        menu-item
+                        :linked-entity-id nil)))
+  ([label files linked-entity-id]
+    (let [menu-item (ui-utils/create-menu-item label (fn [] (ack-alerts files)))]
+      (create-ui-entity :ui-ack-alerts-menu-button
+                        menu-item
+                        :linked-entity-id linked-entity-id))))
+
+(defn create-menu-button-entities-to-ack-alerts-in-group [group group-files]
+  (let [[gr-id gr-data] group
+        group-button (create-menu-button-entity-to-ack-alerts (format "In '%s' group" (:name gr-data))
+                                                              group-files
+                                                              gr-id)
+        file-buttons (map (fn [[f-id f-data :as file]]
+                            (let [[file-name _] (ui-utils/file-name-and-dir (:file f-data))]
+                              (create-menu-button-entity-to-ack-alerts (format "In '%s' file" file-name)
+                                                                       [file]
+                                                                       f-id)))
+                          group-files)]
+    (if (= 1 (count group-files))
+      [group-button]
+      (cons group-button file-buttons))))
+
+(defn create-and-add-menu-buttons-to-ack-alerts! [system root-menu]
+  ; First add the "ack everything button...
+  (let [ack-all-btn-entity (create-menu-button-entity-to-ack-alerts "Everywhere")
+        [ack-all-btn-id ack-all-btn-data] ack-all-btn-entity]
+    (.add root-menu (:value ack-all-btn-data))
+    (let [system-with-ack-all-btn (system-core/add-entity system ack-all-btn-entity)]
+      ; ... then add buttons for file groups and individual files
+      (reduce (fn [sys [group files]]
+                (.addSeparator root-menu)
+                (let [ack-btn-entities (create-menu-button-entities-to-ack-alerts-in-group group files)]
+                      (reduce (fn [sys [btn-id btn-data :as btn-entity]]
+                                (.add root-menu (:value btn-data))
+                                (system-core/add-entity sys btn-entity))
+                              sys
+                              ack-btn-entities)))
+              system-with-ack-all-btn
+              (system-helpers/files-by-file-group system)))))
+
 (defn initialize-ui! []
   (let [tray (SystemTray/getSystemTray)
         image (ui-utils/load-image "icon.png")
         tray-icon (TrayIcon. image)
-        ack-all-alerts-menu (ui-utils/create-menu-item "Acknowledge all alerts" ack-all-alerts)
+        open-files-menu (Menu. "Open files")
+        ack-alerts-menu (Menu. "Acknowledge alerts")
         show-status-menu (ui-utils/create-menu-item "Show status" show-status)
         toggle-check-enabled-menu (ui-utils/create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (ui-utils/create-menu-item "Exit" exit)
         version-menu (ui-utils/create-menu-label (str "Version " (utils/project-version)))
         popup (PopupMenu.)]
+    (doto open-files-menu
+      )
     (doto popup
-      (.add ack-all-alerts-menu)
+      (.add open-files-menu)
+      (.add ack-alerts-menu)
       (.add show-status-menu)
       (.add toggle-check-enabled-menu)
       (.addSeparator)
@@ -154,15 +229,14 @@
     (doto tray-icon
       (.setPopupMenu popup)
       (.setImageAutoSize true)
-      (.addActionListener (ui-utils/create-action-listener open-files-with-alerts))
-      (.addMouseListener (ui-utils/create-mouse-listener :mdl-callback
-                                                         (fn [] (show-status)))))
+      (.addActionListener (ui-utils/create-action-listener open-all-files-with-alerts))
+      (.addMouseListener (ui-utils/create-mouse-listener :mdl-callback show-status)))
     (doto tray
       (.add tray-icon))
     (swap! system-state/system (fn [sys]
                                  (-> sys
                                      (system-core/add-entity (create-ui-entity :ui-tray-icon tray-icon))
-                                     (system-core/add-entity (create-ui-entity :ui-ack-all-alerts-menu-button ack-all-alerts-menu))
+                                     (create-and-add-menu-buttons-to-ack-alerts! ack-alerts-menu)
                                      (system-core/add-entity (create-ui-entity :ui-toggle-check-enabled-menu-button toggle-check-enabled-menu)))))))
 
 
