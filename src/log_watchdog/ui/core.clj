@@ -169,6 +169,7 @@
 ;; main entry point
 
 (defn -main [& args]
+  (utils/configure-logging!)
   (utils/try-let [configuration (config/load-configuration)]
     (do
       (system-state/reset-system! configuration)
