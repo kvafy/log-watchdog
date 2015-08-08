@@ -25,7 +25,7 @@
                 ; this doesn't really work well in Java...
                 1 (sgl-callback)
                 2 (dbl-callback)
-                :else nil)
+                nil)
             MouseEvent/BUTTON2
               (when (= click-count 1)
                 (mdl-callback))
