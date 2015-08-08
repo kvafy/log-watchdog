@@ -23,9 +23,9 @@
   "A 'ui property' is a singleton entity holding instance of a UI Java object.
   This accessor extracts instance of the Java object from the entity."
   [system entity-type]
-  (let [[entity-id entity-data] (first (system-core/query system
-                                                          (system-core/entity-pred :type (partial = entity-type))))]
-    (get entity-data :value)))
+  (let [[entity-id entity-data] (system-core/query-singleton system
+                                                             (system-core/entity-pred :type (partial = entity-type)))]
+    (:value entity-data)))
 
 
 ;; periodic actions
@@ -76,7 +76,7 @@
                    (messages/long-status info-map)
                    TrayIcon$MessageType/WARNING))
 
-(defn maybe-show-balloon-notification! [{:keys [prev-system cur-system config-data unreadable-files unacked-alerts] :as info-map}]
+(defn maybe-show-balloon-notification! [{:keys [prev-system cur-system config-data unacked-alerts] :as info-map}]
   (let [has-new-alert? (system-helpers/has-new-alert? prev-system cur-system)
         has-new-unreadable-file? (system-helpers/has-new-unreadable-file? prev-system cur-system)
         can-nag-now? (< (+ (system-helpers/last-notification-timestamp cur-system)
@@ -90,14 +90,14 @@
 
 (defn process-new-system-notification [_ _ prev-system cur-system]
   ; extract commonly used values into a map and pass that map around
-  (let [info-map {:prev-system    prev-system
-                  :cur-system     cur-system
-                  :config-data    (system-helpers/configuration-data cur-system)
-                  :uses-groups?   (not (system-helpers/uses-defeault-file-group-only? cur-system))
-                  :unacked-alerts-by-file (system-helpers/unacknowledged-alerts-by-file cur-system)
-                  :unacked-alerts-by-group (system-helpers/unacknowledged-alerts-by-file-group cur-system)
-                  :unacked-alerts (system-helpers/unacknowledged-alerts cur-system)
-                  :unreadable-files   (system-helpers/unreadable-files cur-system)
+  (let [info-map {:prev-system               prev-system
+                  :cur-system                cur-system
+                  :config-data               (system-helpers/configuration-data cur-system)
+                  :uses-groups?              (not (system-helpers/uses-defeault-file-group-only? cur-system))
+                  :unacked-alerts            (system-helpers/unacknowledged-alerts cur-system)
+                  :unacked-alerts-by-file    (system-helpers/unacknowledged-alerts-by-file cur-system)
+                  :unacked-alerts-by-group   (system-helpers/unacknowledged-alerts-by-file-group cur-system)
+                  :unreadable-files          (system-helpers/unreadable-files cur-system)
                   :unreadable-files-by-group (system-helpers/unreadable-files-by-file-group cur-system)}]
     (update-tray-icon! info-map)
     (update-tray-tooltip! info-map)
@@ -112,13 +112,13 @@
 
 (defn show-status []
   (let [cur-system @system-state/system
-        info-map   {:cur-system     cur-system
-                    :config-data    (system-helpers/configuration-data cur-system)
-                    :uses-groups?   (not (system-helpers/uses-defeault-file-group-only? cur-system))
-                    :unacked-alerts-by-file (system-helpers/unacknowledged-alerts-by-file cur-system)
-                    :unacked-alerts-by-group (system-helpers/unacknowledged-alerts-by-file-group cur-system)
-                    :unacked-alerts (system-helpers/unacknowledged-alerts cur-system)
-                    :unreadable-files   (system-helpers/unreadable-files cur-system)
+        info-map   {:cur-system                cur-system
+                    :config-data               (system-helpers/configuration-data cur-system)
+                    :uses-groups?              (not (system-helpers/uses-defeault-file-group-only? cur-system))
+                    :unacked-alerts            (system-helpers/unacknowledged-alerts cur-system)
+                    :unacked-alerts-by-file    (system-helpers/unacknowledged-alerts-by-file cur-system)
+                    :unacked-alerts-by-group   (system-helpers/unacknowledged-alerts-by-file-group cur-system)
+                    :unreadable-files          (system-helpers/unreadable-files cur-system)
                     :unreadable-files-by-group (system-helpers/unreadable-files-by-file-group cur-system)}]
   (show-balloon-notification! info-map)))
 

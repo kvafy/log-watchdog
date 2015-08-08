@@ -12,26 +12,17 @@
 ;; read operations
 
 (defn last-notification-timestamp [system]
-  (let [[notifications-id notifications-data] (first (core/query system (core/entity-pred :type (partial = :notifications))))]
-    (get notifications-data :last-notification-timestamp)))
-
-(defn- configuration [system]
-  (core/query system (core/entity-pred :type (partial = :configuration))))
+  (let [[notifications-id notifications-data] (core/query-singleton system (core/entity-pred :type (partial = :notifications)))]
+    (:last-notification-timestamp notifications-data)))
 
 (defn configuration-data [system]
-  (let [[config-id config-data] (first (configuration system))]
+  (let [[config-id config-data] (core/query-singleton system (core/entity-pred :type (partial = :configuration)))]
     config-data))
-
-(defn- files-for-alerts [system alerts]
-  (let [file-ids (->> alerts
-                      (map (fn [[alert-id alert-data]] (get alert-data :watched-file-id)))
-                      (set))]
-    (into {} (filter (fn [[file-id _]] (file-ids file-id)) system))))
 
 
 (defn referenced-entity
   "Crawls the entity graph starting from 'base-entity' which
-  references another entity by key (first referenced-entity-id-keys).
+  references another entity by first key in referenced-entity-id-keys.
   Rest of the entities along the dependency graph reference another
   entities by the rest of the referenced-entity-id-keys.
   Returns the final entity when no more keys are left."
@@ -111,34 +102,34 @@
 ;; update operations
 
 (defn set-last-notification-timestamp [system value]
-  (let [[notifications-id notifications-data] (first (core/query system (core/entity-pred :type (partial = :notifications))))]
-    (assoc system notifications-id (assoc notifications-data :last-notification-timestamp value))))
+  (let [[notifications-id notifications-data] (core/query-singleton system (core/entity-pred :type (partial = :notifications)))]
+    (core/add-entity system [notifications-id (assoc notifications-data :last-notification-timestamp value)])))
 
 (defn toggle-check-enabled [system]
-  (let [[cfg-id cfg-data] (first (configuration system))
-        old-check-enabled (get cfg-data :check-enabled)]
-    (assoc system cfg-id (assoc cfg-data :check-enabled (not old-check-enabled)))))
+  (let [[cfg-id cfg-data] (core/query-singleton system (core/entity-pred :type (partial = :configuration)))
+        old-check-enabled (:check-enabled cfg-data)]
+    (core/add-entity system [cfg-id (assoc cfg-data :check-enabled (not old-check-enabled))])))
 
+(defn acknowledge-alert [system alert]
+  (let [[alert-id alert-data] alert]
+    (core/add-entity system [alert-id (assoc alert-data :acknowledged true)])))
 
 (defn acknowledge-alerts
   "Updates the system by acknowledging all alerts for given files."
   ([system]
-    (let [all-files (core/query system (core/entity-pred :type (partial = :watched-file)))
-          all-file-ids (map (fn [[file-id file-data]] file-id) all-files)]
-      (acknowledge-alerts system all-file-ids)))
-  ([system file-ids-to-ack]
-    (let [alerts-to-ack (core/query system (core/entity-pred :type (partial = :alert)
-                                                             :watched-file-id (partial contains? (apply hash-set file-ids-to-ack))))]
-      (reduce (fn [sys [alert-id alert-data]]
-                (assoc sys alert-id (assoc alert-data :acknowledged true)))
-              system
-              alerts-to-ack))))
+    (let [all-files (core/query system (core/entity-pred :type (partial = :watched-file)))]
+      (acknowledge-alerts system all-files)))
+  ([system files-to-ack]
+    (let [file-ids-to-ack (set (map first files-to-ack))
+          alerts-to-ack (core/query system (core/entity-pred :type (partial = :alert)
+                                                             :watched-file-id (partial contains? file-ids-to-ack)))]
+      (reduce acknowledge-alert system alerts-to-ack))))
 
 (defn- create-or-update-alerts [system file-id matched-alert-lines]
   (reduce (fn [sys matched-line]
-            (if-let [[alert-id alert-data] (first (core/query sys (core/entity-pred :type (partial = :alert)
-                                                                                    :matched-line (partial = matched-line)
-                                                                                    :watched-file-id (partial = file-id))))]
+            (if-let [[alert-id alert-data] (core/query-singleton sys (core/entity-pred :type (partial = :alert)
+                                                                                       :matched-line (partial = matched-line)
+                                                                                       :watched-file-id (partial = file-id)))]
               sys
               (core/add-entity sys
                                (core/create-entity :alert
@@ -150,29 +141,26 @@
 
 (defn- check-file
   "Checks current alerts in given file and updates part of the system which represents this file."
-  [system file-id]
-  (let [file-data (get system file-id)
-        file-path (get file-data :file)
-        regex (get file-data :line-regex)]
+  [system file]
+  (let [[file-id file-data] file
+        file-path (:file file-data)
+        regex (:line-regex file-data)]
     (try
       (with-open [reader (io/reader file-path)]
         (let [matched-lines (->> (line-seq reader)
                                  (filter #(re-matches regex %)))]
           (-> system
               (create-or-update-alerts file-id matched-lines)
-              (assoc file-id (assoc file-data :last-check-failed false)))))
+              (core/add-entity [file-id (assoc file-data :last-check-failed false)]))))
       (catch java.io.IOException ex
         (do
           (log/warn (format "Failed to read file '%s': %s" file-path ex))
-          (assoc system file-id (assoc file-data :last-check-failed true)))))))
+          (core/add-entity system [file-id (assoc file-data :last-check-failed true)]))))))
 
 (defn check-files
   "Updates the system by checking all files or only specified files and updating the system with findings."
   ([system]
-    (let [all-files (core/query system (core/entity-pred :type (partial = :watched-file)))
-          all-file-ids (map first all-files)]
-      (check-files system all-file-ids)))
-  ([system file-ids]
-    (reduce (fn [sys file-id] (check-file sys file-id))
-            system
-            file-ids)))
+    (let [all-files (core/query system (core/entity-pred :type (partial = :watched-file)))]
+      (check-files system all-files)))
+  ([system files]
+    (reduce check-file system files)))

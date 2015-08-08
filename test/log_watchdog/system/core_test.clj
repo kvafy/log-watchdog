@@ -86,23 +86,45 @@
       (validators/validate-system created-system))))
 
 
+(deftest query-by-id-test
+  (testing "Existing entity is found"
+    (let [entity (core/query-by-id system-orig config-id)]
+      (is (not (nil? entity)))
+      (is (= config-id (first entity)))))
+  (testing "Non-existing entity is not found"
+    (is (nil? (core/query-by-id system-orig "IDs are not strings")))))
+
+
 (deftest query-test
   (testing "Impossible predicate results in no entity being found."
     (let [result (core/query system-orig (core/entity-pred :type (partial = :alert)
                                                            :type (partial = :watched-file)))]
-      (is (map? result))
+      (is (seq? result))
       (is (empty? result))))
-  (testing "Empty predicate returns all entities (the whole system)."
+  (testing "Empty predicate matches all entities (query yields the whole system)."
     (let [all-entities (core/query system-orig (core/entity-pred))]
-      (is (map? all-entities))
-      (is (= all-entities system-orig))))
+      (is (seq? all-entities))
+      (is (= system-orig
+             (apply merge (map (fn [[e-id e-data]] {e-id e-data}) all-entities))))))
   (testing "Fetch files"
     (let [files (core/query system-orig (core/entity-pred :type (partial = :watched-file)))]
-      (is (map? files))
+      (is (seq? files))
       (let [file-ids (map first files)]
         (is (= #{file1-id file2-id} (set file-ids))))))
   (testing "Fetch alerts"
     (let [alerts (core/query system-orig (core/entity-pred :type (partial = :alert)))]
-      (is (map? alerts))
+      (is (seq? alerts))
       (let [alert-ids (map first alerts)]
         (is (= #{alert1-id alert2-id alert3-id alert4-id} (set alert-ids)))))))
+
+
+(deftest query-singleton-test
+  (testing "Impossible predicate results in no entity being found."
+    (is (nil? (core/query-singleton system-orig (core/entity-pred :type (partial = :undefined-entity-type))))))
+  (testing "Existing singleton entity is found"
+    (let [entity (core/query-singleton system-orig (core/entity-pred :type (partial = :configuration)))]
+      (is (not (nil? entity)))
+      (is (= config-id (first entity)))))
+  (testing "Ambiguous entity predicate yields nil."
+    (let [entity (core/query-singleton system-orig (core/entity-pred :type (partial = :alert)))]
+      (is (nil? entity)))))
