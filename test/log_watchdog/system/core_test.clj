@@ -80,6 +80,29 @@
     (validators/validate-system system-orig)))
 
 
+(deftest create-entity-test
+  (testing "Minimalistic entity has type only"
+    (let [min-entity (core/create-entity :my-type)]
+      (is (vector? min-entity))
+      (is (= 2 (count min-entity)))
+      (let [[id data] min-entity]
+        (is (map? data))
+        (is (= 1 (count data)))
+        (is (= :my-type (:type data))))))
+  (testing "Entity with other properties"
+    (let [entity (core/create-entity :rich-entity
+                                     :str-property "string"
+                                     :int-property 42)]
+      (is (vector? entity))
+      (is (= 2 (count entity)))
+      (let [[id data] entity]
+        (is (map? data))
+        (is (= 3 (count data)))
+        (is (= :rich-entity (:type data)))
+        (is (= "string" (:str-property data)))
+        (is (= 42 (:int-property data)))))))
+
+
 (deftest create-system-test
   (let [created-system (core/create-system config-test/valid-configuration)]
     (testing "creating a system based on valid configuration yields a structurally valid system"
@@ -128,3 +151,22 @@
   (testing "Ambiguous entity predicate yields nil."
     (let [entity (core/query-singleton system-orig (core/entity-pred :type (partial = :alert)))]
       (is (nil? entity)))))
+
+
+(deftest add-entity-test
+  (testing "Adding entity to an empty system"
+    (let [system-zero {}
+          entity (core/create-entity :first-entity)
+          system-one (core/add-entity system-zero entity)]
+      (is (map? system-one))
+      (is (= 1 (count system-one)))))
+  (testing "Update semantics of add, if entity already exists"
+    (let [entity-id alert1-id
+          [_ entity-data-orig] (core/query-by-id system-orig entity-id)
+          entity-data-new (assoc entity-data-orig :matched-line "this property has changed")
+          system-new (core/add-entity system-orig [entity-id entity-data-new])]
+      ; number of entities stays the same
+      (is (= (count system-orig) (count system-new)))
+      ; the updated entity changes
+      (is (not= (core/query-by-id system-orig entity-id)
+                (core/query-by-id system-new entity-id))))))
