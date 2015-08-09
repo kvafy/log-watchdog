@@ -1,14 +1,39 @@
+; A semicolon comments everything until the end of the line.
 
-{ :check-interval-ms 5000
+; Whole configuration is a nested map of key-value pairs. Map starts by '{' and ends by '}'.
+
+{
+  ; Bellow is configuration of all files to check.
+  :files
+    {
+      ; Key in the ':files' map is a file path (relative or absolute), value
+      ; is a map containing additional file-specific options.
+      ; Note: On all platforms it is better to use forward slashes in the file path.
+
+      ; This is a log file in which we are interested in ERROR-level messages only.
+      ; Also, the file belongs to file group named "A". Note that the file groups are
+      ; completely optional.
+      "test/resources/errors.log"
+        {
+          ; Java regular expression for ERROR-level messages.
+          ; An alert is raised when a matching line is found in the file.
+          :line-regex "^ERROR.*$"
+          ; File group into which this file belongs (Optional key-value pair).
+          :file-group "A"
+        }
+
+      ; Configuration of another file to check. This time we are interested also
+      ; in WARN-level messages.
+      "/home/user/log-watchdog/test/resources/warns.log"
+        {
+          :line-regex "^(ERROR|WARN).*$"
+          :file-group "A"
+        }
+    }
+
+  ; How often should all the files be checked for new alert lines?
+  :check-interval-ms 5000
+  ; How often can the app show notification when there are alerts with unacknowledged alerts?
   :nagging-interval-ms 60000
 
-  :files
-    { "test/resources/errors.log"
-        { :line-regex "^ERROR.*$"
-          :file-group "A"
-          }
-      "/home/kvafy/programming/clojure/log-watchdog/test/resources/warns.log"
-        { :line-regex "^WARN.*$"
-          :file-group "B"}
-    }
 }
