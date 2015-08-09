@@ -234,7 +234,7 @@
     (doto open-files-menu
       )
     (doto popup
-      (.add open-files-menu)
+      ;(.add open-files-menu)
       (.add ack-alerts-menu)
       (.add show-status-menu)
       (.add toggle-check-enabled-menu)
