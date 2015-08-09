@@ -1,18 +1,18 @@
 ; A semicolon comments everything until the end of the line.
 
-; Whole configuration is a nested map of key-value pairs. Map starts by '{' and ends by '}'.
+; Whole configuration is a nested map of key-value pairs. In EDN, map starts by '{' and ends by '}'.
 
 {
-  ; Bellow is configuration of all files to check.
+  ; Bellow is configuration of all files to be watched.
   :files
     {
-      ; Key in the ':files' map is a file path (relative or absolute), value
-      ; is a map containing additional file-specific options.
-      ; Note: On all platforms it is better to use forward slashes in the file path.
+      ; Key in the ':files' map is a string denoting file path (relative or absolute),
+      ; value is another map containing file-specific options.
+      ; Note: On all platforms, it is better to use forward slashes in the file path.
 
       ; This is a log file in which we are interested in ERROR-level messages only.
-      ; Also, the file belongs to file group named "A". Note that the file groups are
-      ; completely optional.
+      ; Also, the file belongs to file group named "A".
+      ; Note that the file groups are completely optional.
       "test/resources/errors.log"
         {
           ; Java regular expression for ERROR-level messages.
@@ -30,6 +30,9 @@
           :file-group "A"
         }
     }
+
+
+  ; Application-wide options.
 
   ; How often should all the files be checked for new alert lines?
   :check-interval-ms 5000
