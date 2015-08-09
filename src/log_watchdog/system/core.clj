@@ -47,10 +47,7 @@
   "Queries system for entity having given id.
   Returns entity as a 2-tuple (entity-id entity-data) or nil if entity doesn't exist."
   [system entity-id]
-  (let [entity-data (get system entity-id)]
-    (if (nil? entity-data)
-      nil
-      [entity-id entity-data])))
+  (find system entity-id))
 
 (defn query
   "Queries system for entities matching given entity predicate.
