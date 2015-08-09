@@ -24,7 +24,7 @@
       { "file1"
           { :line-regex #"^ERROR.*$" :file-group "file-group-1"}
         "file2"
-          { :line-regex #"^WARN.*$" :file-group nil}}})
+          { :line-regex #"^WARN.*$" :file-group config/default-watched-file-group-name}}})
 
 
 (deftest configuration-validator-test
@@ -51,4 +51,4 @@
       (is (= 2 (count (:files cfg))))
       (is (= #{"file1" "file2"} (set (keys (:files cfg)))))
       (is (= "file-group-1" (get-in cfg [:files "file1" :file-group])))
-      (is (= nil (get-in cfg [:files "file2" :file-group]))))))
+      (is (= config/default-watched-file-group-name (get-in cfg [:files "file2" :file-group]))))))

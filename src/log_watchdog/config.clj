@@ -6,6 +6,8 @@
 
 (def config-file "configuration.edn")
 
+(def default-watched-file-group-name "Default")
+
 (defn load-configuration
   "Loads the configuration, either from the default file, or from a given EDN string,
   adding default values when not specified.
@@ -16,7 +18,7 @@
       :files
         { <file-path-1>
           { :line-regex <pattern>
-            :file-group <string/nil>}
+            :file-group <string>}
           ...
         }
     }.
@@ -34,7 +36,7 @@
       (let [files-map (into {}
                             (for [file-name (keys (get-in raw-edn [:files]))]
                               (let [pattern (re-pattern (get-in raw-edn [:files file-name :line-regex]))
-                                    file-group (get-in raw-edn [:files file-name :file-group] nil)]
+                                    file-group (get-in raw-edn [:files file-name :file-group] default-watched-file-group-name)]
                                 {file-name {:line-regex pattern :file-group file-group}})))]
         {:check-interval-ms (long (:check-interval-ms raw-edn))
          :nagging-interval-ms (long (:nagging-interval-ms raw-edn))

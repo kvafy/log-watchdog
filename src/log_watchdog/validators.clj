@@ -17,7 +17,7 @@
     :files
       { s/Str
         { :line-regex s/Regex
-          :file-group (s/maybe s/Str)}}})
+          :file-group s/Str}}})
 
 
 ;; Validators for system entities

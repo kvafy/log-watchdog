@@ -162,17 +162,24 @@
 
 (defn create-menu-button-entity-to-ack-alerts
   ([label]
+    ; acknowledge all alerts in all files in the system
     (let [menu-item (ui-utils/create-menu-item label (fn [] (ack-alerts)))]
       (create-ui-entity :ui-ack-alerts-menu-button
                         menu-item
                         :linked-entity-id nil)))
+  ; acknowledge alerts only in specified files (used for file groups & individual files)
   ([label files linked-entity-id]
     (let [menu-item (ui-utils/create-menu-item label (fn [] (ack-alerts files)))]
       (create-ui-entity :ui-ack-alerts-menu-button
                         menu-item
                         :linked-entity-id linked-entity-id))))
 
-(defn create-menu-button-entities-to-ack-alerts-in-group [group group-files]
+(defn create-menu-button-entities-to-ack-alerts-in-group
+  "Creates following menu buttons for a file group of n files (in the order bellow):
+    * 1 button to acknowledge alerts in all files in the group
+    * n buttons to acknowledge alerts in individual files.
+  If the group has only one file, creates only the per-group button."
+  [group group-files]
   (let [[gr-id gr-data] group
         group-button (create-menu-button-entity-to-ack-alerts (format "In '%s' group" (:name gr-data))
                                                               group-files
@@ -188,22 +195,30 @@
       (cons group-button file-buttons))))
 
 (defn create-and-add-menu-buttons-to-ack-alerts! [system root-menu]
-  ; First add the "ack everything button...
-  (let [ack-all-btn-entity (create-menu-button-entity-to-ack-alerts "Everywhere")
-        [ack-all-btn-id ack-all-btn-data] ack-all-btn-entity]
-    (.add root-menu (:value ack-all-btn-data))
-    (let [system-with-ack-all-btn (system-core/add-entity system ack-all-btn-entity)]
-      ; ... then add buttons for file groups and individual files
-      (reduce (fn [sys [group files]]
-                (.addSeparator root-menu)
-                (let [ack-btn-entities (create-menu-button-entities-to-ack-alerts-in-group group files)]
-                      (reduce (fn [sys [btn-id btn-data :as btn-entity]]
-                                (.add root-menu (:value btn-data))
-                                (system-core/add-entity sys btn-entity))
-                              sys
-                              ack-btn-entities)))
-              system-with-ack-all-btn
-              (system-helpers/files-by-file-group system)))))
+  ; First, add buttons for file groups and individual files...
+  (let [files-by-group (system-helpers/files-by-file-group system)
+        [system _] (reduce (fn [[sys add-separator?] [group files]]
+                             (when add-separator?
+                               (.addSeparator root-menu))
+                             (let [ack-btn-entities (create-menu-button-entities-to-ack-alerts-in-group group files)
+                                   sys'' (reduce (fn [sys' [btn-id btn-data :as btn-entity]]
+                                                   (.add root-menu (:value btn-data))
+                                                   (system-core/add-entity sys' btn-entity))
+                                                 sys
+                                                 ack-btn-entities)]
+                               [sys'' true]))
+                           [system false]
+                           files-by-group)]
+    ; ... then add the "ack everything button, but only if there is more than one file group
+    (if (>= 1 (count files-by-group))
+      system
+      (let [ack-all-btn-entity (create-menu-button-entity-to-ack-alerts "Everywhere")
+            [ack-all-btn-id ack-all-btn-data] ack-all-btn-entity
+            system-with-ack-all-btn (system-core/add-entity system ack-all-btn-entity)]
+        (doto root-menu
+          (.insertSeparator 0)
+          (.insert (:value ack-all-btn-data) 0))
+        system-with-ack-all-btn))))
 
 (defn initialize-ui! []
   (let [tray (SystemTray/getSystemTray)

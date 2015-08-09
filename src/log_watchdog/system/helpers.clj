@@ -2,7 +2,8 @@
   (:require [clojure.set]
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
-            [log-watchdog.system.core :as core]))
+            [log-watchdog.system.core :as core]
+            [log-watchdog.config :as config]))
 
 ;; Contains complex or specific operations to read/modify a system.
 ;; These operations don't logically belong into the log-watchdog.system.core
@@ -84,7 +85,7 @@
 (defn uses-defeault-file-group-only? [system]
   (let [file-groups (core/query system (core/entity-pred :type (partial = :watched-file-group)))
         file-group-names (map (fn [[_ group-data]] (:name group-data)) file-groups)]
-    (= #{nil} (set file-group-names))))
+    (= #{config/default-watched-file-group-name} (set file-group-names))))
 
 
 ;; systems-comparing predicates
