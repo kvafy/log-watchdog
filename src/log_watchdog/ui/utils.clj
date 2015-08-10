@@ -43,6 +43,14 @@
     (.setEnabled item false)
     item))
 
+(defn update-menu-item! [menu-item label enabled]
+  (let [cur-label (.getLabel menu-item)
+        cur-enabled (.isEnabled menu-item)]
+    (when (not= cur-label label)
+      (.setLabel menu-item label))
+    (when (not= cur-enabled enabled)
+      (.setEnabled menu-item enabled))))
+
 (defn load-image [resource-name]
   (.getImage (Toolkit/getDefaultToolkit) (clojure.java.io/resource resource-name)))
 

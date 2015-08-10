@@ -69,19 +69,19 @@
           :watched-file
             (let [[file-name _] (ui-utils/file-name-and-dir (:file linked-entity-data))
                   file-alerts (get unacked-alerts-by-file linked-entity)]
-              (doto (:value ack-btn-data)
-                (.setLabel (format "In '%s' file (%d)" file-name (count file-alerts)))
-                (.setEnabled (not (empty? file-alerts)))))
+              (ui-utils/update-menu-item! (:value ack-btn-data)
+                                          (format "In '%s' file (%d)" file-name (count file-alerts))
+                                          (not (empty? file-alerts))))
           :watched-file-group
             (let [group-name (:name linked-entity-data)
                   group-alerts (get unacked-alerts-by-group linked-entity)]
-              (doto (:value ack-btn-data)
-                (.setLabel (format "In '%s' group (%d)" group-name (count group-alerts)))
-                (.setEnabled (not (empty? group-alerts)))))
+              (ui-utils/update-menu-item! (:value ack-btn-data)
+                                          (format "In '%s' group (%d)" group-name (count group-alerts))
+                                          (not (empty? group-alerts))))
           ; the 'ack all alerts everywhere' button has no linked entity
-          (doto (:value ack-btn-data)
-            (.setLabel (format "Everywhere (%d)" (count unacked-alerts)))
-            (.setEnabled (not (empty? unacked-alerts)))))))))
+          (ui-utils/update-menu-item! (:value ack-btn-data)
+                                      (format "Everywhere (%d)" (count unacked-alerts))
+                                      (not (empty? unacked-alerts))))))))
 
 (defn update-menu-items! [{:keys [cur-system config-data] :as info-map}]
   (update-alert-acknowledging-menu-items! info-map)
