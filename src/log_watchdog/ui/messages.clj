@@ -27,14 +27,14 @@
                                 ""
                               uses-groups?
                                 (format "%s in %s."
-                                        (ui-utils/plural-of-word (count (concat (vals unreadable-files-by-group)))
+                                        (ui-utils/plural-of-word (count (apply concat (vals unreadable-files-by-group)))
                                                                  "unreadable"
                                                                  "file")
                                         (ui-utils/plural-of-word (count (keys unreadable-files-by-group))
                                                                  "group"))
                               :else
                                 (format "%s."
-                                        (ui-utils/plural-of-word (count (concat (vals unreadable-files-by-group)))
+                                        (ui-utils/plural-of-word (count (apply concat (vals unreadable-files-by-group)))
                                                                  "unreadable"
                                                                  "file")))]
     (clojure.string/join " " (filter not-empty [alerts-msg unreadable-files-msg])))))
