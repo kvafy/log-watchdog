@@ -43,12 +43,13 @@
     (.setEnabled item false)
     item))
 
-(defn update-menu-item! [menu-item label enabled]
-  (let [cur-label (.getLabel menu-item)
-        cur-enabled (.isEnabled menu-item)]
-    (when (not= cur-label label)
+(defn update-menu-item! [menu-item & kvs]
+  (let [{:keys [label enabled]} kvs]
+    (when (and (not (nil? label))
+               (not= label (.getLabel menu-item)))
       (.setLabel menu-item label))
-    (when (not= cur-enabled enabled)
+    (when (and (not (nil? enabled))
+               (not= enabled (.isEnabled menu-item)))
       (.setEnabled menu-item enabled))))
 
 (defn load-image [resource-name]

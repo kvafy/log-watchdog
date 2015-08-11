@@ -70,25 +70,26 @@
             (let [[file-name _] (ui-utils/file-name-and-dir (:file linked-entity-data))
                   file-alerts (get unacked-alerts-by-file linked-entity)]
               (ui-utils/update-menu-item! (:value ack-btn-data)
-                                          (format "In '%s' file (%d)" file-name (count file-alerts))
-                                          (not (empty? file-alerts))))
+                                          :label (format "In '%s' file (%d)" file-name (count file-alerts))
+                                          :enabled (not (empty? file-alerts))))
           :watched-file-group
             (let [group-name (:name linked-entity-data)
                   group-alerts (get unacked-alerts-by-group linked-entity)]
               (ui-utils/update-menu-item! (:value ack-btn-data)
-                                          (format "In '%s' group (%d)" group-name (count group-alerts))
-                                          (not (empty? group-alerts))))
+                                          :label (format "In '%s' group (%d)" group-name (count group-alerts))
+                                          :enabled (not (empty? group-alerts))))
           ; the 'ack all alerts everywhere' button has no linked entity
           (ui-utils/update-menu-item! (:value ack-btn-data)
-                                      (format "Everywhere (%d)" (count unacked-alerts))
-                                      (not (empty? unacked-alerts))))))))
+                                      :label (format "Everywhere (%d)" (count unacked-alerts))
+                                      :enabled (not (empty? unacked-alerts))))))))
 
 (defn update-menu-items! [{:keys [cur-system config-data] :as info-map}]
   (update-alert-acknowledging-menu-items! info-map)
-  (doto (ui-entity-value cur-system :ui-toggle-check-enabled-menu-button)
-    (.setLabel (if (:check-enabled config-data)
-                 "Disable file checking"
-                 "Enable file checking"))))
+  (let [check-toggler (ui-entity-value cur-system :ui-toggle-check-enabled-menu-button)]
+    (ui-utils/update-menu-item! check-toggler
+                                :label (if (:check-enabled config-data)
+                                             "Disable file checking"
+                                             "Enable file checking"))))
 
 (defn show-balloon-notification! [{:keys [cur-system] :as info-map}]
   (.displayMessage (ui-entity-value cur-system :ui-tray-icon)
