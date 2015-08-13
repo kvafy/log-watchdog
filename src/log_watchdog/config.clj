@@ -18,7 +18,8 @@
       :files
         { <file-path-1>
           { :line-regex <pattern>
-            :file-group <string>}
+            :file-group <string>
+            :always-check-override <boolean>}
           ...
         }
     }.
@@ -35,9 +36,9 @@
       (s/validate validators/configuration-edn raw-edn)
       (let [files-map (into {}
                             (for [file-name (keys (get-in raw-edn [:files]))]
-                              (let [pattern (re-pattern (get-in raw-edn [:files file-name :line-regex]))
-                                    file-group (get-in raw-edn [:files file-name :file-group] default-watched-file-group-name)]
-                                {file-name {:line-regex pattern :file-group file-group}})))]
-        {:check-interval-ms (long (:check-interval-ms raw-edn))
+                              {file-name {:line-regex (re-pattern (get-in raw-edn [:files file-name :line-regex]))
+                                          :file-group (get-in raw-edn [:files file-name :file-group] default-watched-file-group-name)
+                                          :always-check-override (get-in raw-edn [:files file-name :always-check-override] false)}}))]
+        {:check-interval-ms   (long (:check-interval-ms raw-edn))
          :nagging-interval-ms (long (:nagging-interval-ms raw-edn))
-         :files files-map}))))
+         :files               files-map}))))

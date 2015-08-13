@@ -8,12 +8,16 @@
 (def valid-configuration-raw
   "{ :check-interval-ms 5000
      :nagging-interval-ms 60000
+
      :files
        { \"file1\"
-           { :line-regex \"^ERROR.*$\" :file-group \"file-group-1\" }
+           { :line-regex \"^ERROR.*$\"
+             :file-group \"file-group-1\"
+             :always-check-override true}
          \"file2\"
            { :line-regex \"^WARN.*$\"}
        }
+
    }")
 
 
@@ -22,9 +26,13 @@
     :nagging-interval-ms 60000
     :files
       { "file1"
-          { :line-regex #"^ERROR.*$" :file-group "file-group-1"}
+          { :line-regex #"^ERROR.*$"
+            :file-group "file-group-1"
+            :always-check-override true}
         "file2"
-          { :line-regex #"^WARN.*$" :file-group config/default-watched-file-group-name}}})
+          { :line-regex #"^WARN.*$"
+            :file-group config/default-watched-file-group-name
+            :always-check-override false}}})
 
 
 (deftest configuration-validator-test
@@ -51,4 +59,6 @@
       (is (= 2 (count (:files cfg))))
       (is (= #{"file1" "file2"} (set (keys (:files cfg)))))
       (is (= "file-group-1" (get-in cfg [:files "file1" :file-group])))
+      (is (true?  (get-in cfg [:files "file1" :always-check-override])))
+      (is (false? (get-in cfg [:files "file2" :always-check-override])))
       (is (= config/default-watched-file-group-name (get-in cfg [:files "file2" :file-group]))))))

@@ -4,12 +4,13 @@
 ;; Validators for log-watchdog.configuration
 
 (def configuration-edn
-  { :check-interval-ms s/Int
-    :nagging-interval-ms s/Int
-    :files
+  { :files
       { s/Str
         { :line-regex s/Str
-          (s/optional-key :file-group) s/Str}}})
+          (s/optional-key :file-group) s/Str
+          (s/optional-key :always-check-override) s/Bool}}
+    :check-interval-ms s/Int
+    :nagging-interval-ms s/Int})
 
 (def configuration
   { :check-interval-ms s/Int
@@ -17,7 +18,8 @@
     :files
       { s/Str
         { :line-regex s/Regex
-          :file-group s/Str}}})
+          :file-group s/Str
+          :always-check-override s/Bool}}})
 
 
 ;; Validators for system entities
@@ -42,7 +44,10 @@
     :file java.io.File
     :line-regex s/Regex
     :last-check-failed s/Bool
-    :watched-file-group-id s/Uuid})
+    :file-last-size-b (s/maybe s/Int)
+    :file-last-modified-ms (s/maybe s/Int)
+    :watched-file-group-id s/Uuid
+    :always-check-override s/Bool})
 
 (defmethod entity-validator :watched-file-group [entity]
   { :type s/Keyword

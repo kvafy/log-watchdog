@@ -39,7 +39,7 @@
                 (when (:check-enabled config-data)
                   (log/info "Checking files...")
                   (swap! system-state/system system-helpers/check-files)
-                  (log/trace @system-state/system))
+                  (log/debug @system-state/system))
                 (Thread/sleep (:check-interval-ms config-data))
                 (recur))))]
     (doto (Thread. system-updating-fn)

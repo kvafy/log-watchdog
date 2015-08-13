@@ -34,7 +34,10 @@
                                             :file                  (java.io.File. file-name)
                                             :line-regex            (get-in config [:files file-name :line-regex])
                                             :last-check-failed     false
-                                            :watched-file-group-id (group-name->group-id (get-in config [:files file-name :file-group]))))
+                                            :file-last-size-b      nil
+                                            :file-last-modified-ms nil
+                                            :watched-file-group-id (group-name->group-id (get-in config [:files file-name :file-group]))
+                                            :always-check-override (get-in config [:files file-name :always-check-override])))
         notifications-entity (create-entity :notifications
                                             :last-notification-timestamp 0N)
         all-entities (concat [cfg-entity notifications-entity] file-entities group-entities)]

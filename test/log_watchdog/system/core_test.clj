@@ -33,7 +33,10 @@
         :file (java.io.File. "file-path-1")
         :line-regex #".*"
         :last-check-failed false
-        :watched-file-group-id file-group1-id}
+        :file-last-size-b nil
+        :file-last-modified-ms nil
+        :watched-file-group-id file-group1-id
+        :always-check-override false}
     alert1-id
       { :type :alert
         :matched-line "line-1"
@@ -50,7 +53,10 @@
         :file (java.io.File. "file-path-2")
         :line-regex #".*"
         :last-check-failed true
-        :watched-file-group-id file-group-default-id}
+        :file-last-size-b nil
+        :file-last-modified-ms nil
+        :watched-file-group-id file-group-default-id
+        :always-check-override false}
     alert3-id
       { :type :alert
         :matched-line "line-3"

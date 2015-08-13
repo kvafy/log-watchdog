@@ -1,9 +1,10 @@
 (ns log-watchdog.system.helpers
   (:require [clojure.set]
-            [clojure.java.io :as io]
+            [clojure.java.io]
             [clojure.tools.logging :as log]
             [log-watchdog.system.core :as core]
-            [log-watchdog.config :as config]))
+            [log-watchdog.config :as config]
+            [log-watchdog.io]))
 
 ;; Contains complex or specific operations to read/modify a system.
 ;; These operations don't logically belong into the log-watchdog.system.core
@@ -147,23 +148,36 @@
           system
           matched-alert-lines))
 
+(defn- perform-file-check? [file-data]
+  (let [file (:file file-data)]
+    (if-not (log-watchdog.io/file-exists? file)
+      true ; perform the check - the checking mechanism needs to fail and take a note about it
+      (or (not= (log-watchdog.io/file-last-modified-ms file) (:file-last-modified-ms file-data))
+          (not= (log-watchdog.io/file-size file) (:file-last-size-b file-data))
+          (:always-check-override file-data)))))
+
 (defn- check-file
   "Checks current alerts in given file and updates part of the system which represents this file."
-  [system file]
-  (let [[file-id file-data] file
-        file-path (:file file-data)
-        regex (:line-regex file-data)]
-    (try
-      (with-open [reader (io/reader file-path)]
-        (let [matched-lines (->> (line-seq reader)
-                                 (filter #(re-matches regex %)))]
-          (-> system
-              (create-or-update-alerts file-id matched-lines)
-              (core/add-entity [file-id (assoc file-data :last-check-failed false)]))))
-      (catch java.io.IOException ex
-        (do
-          (log/warn (format "Failed to read file '%s': %s" file-path ex))
-          (core/add-entity system [file-id (assoc file-data :last-check-failed true)]))))))
+  [system file-entity]
+  (let [[file-id file-data] file-entity]
+    (log/debugf "(perform-file-check? \"%s\") -> %s" (:file file-data) (perform-file-check? file-data))
+    (if-not (perform-file-check? file-data)
+      system
+      (try
+        (with-open [reader (clojure.java.io/reader (:file file-data))]
+          (let [matched-lines (->> (line-seq reader)
+                                   (filter #(re-matches (:line-regex file-data) %)))]
+            (-> system
+                (create-or-update-alerts file-id matched-lines)
+                (core/add-entity [file-id (assoc file-data :last-check-failed false
+                                                           :file-last-size-b (log-watchdog.io/file-size (:file file-data))
+                                                           :file-last-modified-ms (log-watchdog.io/file-last-modified-ms (:file file-data)))]))))
+        (catch java.io.IOException ex
+          (do
+            (log/warn (format "Failed to read file '%s': %s" (:file file-data) ex))
+            (core/add-entity system [file-id (assoc file-data :last-check-failed true
+                                                              :file-last-size-b nil
+                                                              :file-last-modified-ms nil)])))))))
 
 (defn check-files
   "Updates the system by checking all files or only specified files and updating the system with findings."
