@@ -8,7 +8,8 @@
       { s/Str
         { :line-regex s/Str
           (s/optional-key :file-group) s/Str
-          (s/optional-key :always-check-override) s/Bool}}
+          (s/optional-key :always-check-override) s/Bool
+          (s/optional-key :never-seek-override) s/Bool}}
     :check-interval-ms s/Int
     :nagging-interval-ms s/Int})
 
@@ -19,7 +20,8 @@
       { s/Str
         { :line-regex s/Regex
           :file-group s/Str
-          :always-check-override s/Bool}}})
+          :always-check-override s/Bool
+          :never-seek-override s/Bool}}})
 
 
 ;; Validators for system entities
@@ -47,7 +49,8 @@
     :file-last-size-b (s/maybe s/Int)
     :file-last-modified-ms (s/maybe s/Int)
     :watched-file-group-id s/Uuid
-    :always-check-override s/Bool})
+    :always-check-override s/Bool
+    :never-seek-override s/Bool})
 
 (defmethod entity-validator :watched-file-group [entity]
   { :type s/Keyword

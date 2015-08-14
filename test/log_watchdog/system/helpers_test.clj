@@ -218,4 +218,56 @@
                                          :size-before-test 100
                                          :size-during-test 11
                                          :expected-file-read? true
-                                         :always-check-override false}))))
+                                         :always-check-override false})))
+  (letfn [(file-is-seeked?-test-fn
+           [{:keys [size-before-test size-during-test
+                    expected-file-reader-seek-offset
+                    never-seek-override]}]
+            (let [last-modified-before-test 42
+                  last-modified-during-test 4200 ; always want to advance time so that the seeking decisions need to be made
+                  tested-file-id file1-id
+                  [_ tested-file-data-orig :as tested-file] (core/query-by-id system-orig tested-file-id)]
+              ; Prepare the tested file for test and craft a new system for test
+              (let [tested-file-data-before (assoc tested-file-data-orig :file-last-size-b size-before-test
+                                                                         :file-last-modified-ms last-modified-before-test
+                                                                         ; Force the check to be sure - want to test the seeking logic.
+                                                                         :always-check-override true
+                                                                         :never-seek-override never-seek-override)
+                    system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])
+                    file-before (core/query-by-id system-before tested-file-id)
+                    file-reader-seek-offset (atom nil)]
+                (validators/validate-system system-before)
+                (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] true)
+                                 #'log-watchdog.io/file-size (fn [file-path] size-during-test)
+                                 #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
+                                 #'clojure.java.io/reader (fn [file-path & _] (reader-for-string! ""))
+                                 #'log-watchdog.io/seek-reader! (fn [reader offset] (reset! file-reader-seek-offset offset))}
+                  (fn []
+                    (let [system-new (helpers/check-files system-before [file-before])]
+                      (validators/validate-system system-new)
+                      (is (= expected-file-reader-seek-offset @file-reader-seek-offset))))))))]
+    (testing "File reader seeked when file size increases"
+      (file-is-seeked?-test-fn {:size-before-test 100
+                                :size-during-test 1000
+                                :expected-file-reader-seek-offset 100
+                                :never-seek-override false}))
+    (testing "File reader NOT seeked when the override is set"
+      (file-is-seeked?-test-fn {:size-before-test 100
+                                :size-during-test 1000
+                                :expected-file-reader-seek-offset nil
+                                :never-seek-override true}))
+    (testing "File reader NOT seeked when file size doesn't change"
+      (file-is-seeked?-test-fn {:size-before-test 100
+                                :size-during-test 100
+                                :expected-file-reader-seek-offset nil
+                                :never-seek-override false}))
+    (testing "File reader NOT seeked when file size decreases"
+      (file-is-seeked?-test-fn {:size-before-test 100
+                                :size-during-test 10
+                                :expected-file-reader-seek-offset nil
+                                :never-seek-override false}))
+    (testing "File reader NOT seeked when previous file size is unknown"
+      (file-is-seeked?-test-fn {:size-before-test nil
+                                :size-during-test 100
+                                :expected-file-reader-seek-offset nil
+                                :never-seek-override false}))))

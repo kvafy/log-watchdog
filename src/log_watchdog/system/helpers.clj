@@ -156,16 +156,23 @@
           (not= (log-watchdog.io/file-size file) (:file-last-size-b file-data))
           (:always-check-override file-data)))))
 
+(defn- perform-file-seek? [file-data]
+  (let [file (:file file-data)]
+    (and (false? (:never-seek-override file-data))
+         (not (nil? (:file-last-size-b file-data)))
+         (< (:file-last-size-b file-data) (log-watchdog.io/file-size file)))))
+
 (defn- check-file
   "Checks current alerts in given file and updates part of the system which represents this file."
   [system file-entity]
-  (let [[file-id file-data] file-entity
-        perform-file-check? (perform-file-check? file-data)]
-    (log/debugf "(perform-file-check? \"%s\") -> %s" (:file file-data) perform-file-check?)
-    (if-not perform-file-check?
+  (let [[file-id file-data] file-entity]
+    (log/debugf "Checking file \"%s\"" (:file file-data))
+    (if-not (log/spy :debug (perform-file-check? file-data))
       system
       (try
         (with-open [reader (clojure.java.io/reader (:file file-data))]
+          (when (log/spy :debug (perform-file-seek? file-data))
+            (log-watchdog.io/seek-reader! reader (:file-last-size-b file-data)))
           (let [matched-lines (->> (line-seq reader)
                                    (filter #(re-matches (:line-regex file-data) %)))]
             (-> system

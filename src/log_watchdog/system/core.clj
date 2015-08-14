@@ -31,13 +31,14 @@
         group-name->group-id (into {} (map (fn [[gid gdata]] {(:name gdata) gid}) group-entities))
         file-entities (for [file-name file-names]
                              (create-entity :watched-file
-                                            :file                  (java.io.File. file-name)
-                                            :line-regex            (get-in config [:files file-name :line-regex])
-                                            :last-check-failed     false
-                                            :file-last-size-b      nil
-                                            :file-last-modified-ms nil
-                                            :watched-file-group-id (group-name->group-id (get-in config [:files file-name :file-group]))
-                                            :always-check-override (get-in config [:files file-name :always-check-override])))
+                                            :file                   (java.io.File. file-name)
+                                            :line-regex             (get-in config [:files file-name :line-regex])
+                                            :last-check-failed      false
+                                            :file-last-size-b       nil
+                                            :file-last-modified-ms  nil
+                                            :watched-file-group-id  (group-name->group-id (get-in config [:files file-name :file-group]))
+                                            :always-check-override  (get-in config [:files file-name :always-check-override])
+                                            :never-seek-override    (get-in config [:files file-name :never-seek-override])))
         notifications-entity (create-entity :notifications
                                             :last-notification-timestamp 0N)
         all-entities (concat [cfg-entity notifications-entity] file-entities group-entities)]

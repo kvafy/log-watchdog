@@ -36,7 +36,8 @@
         :file-last-size-b nil
         :file-last-modified-ms nil
         :watched-file-group-id file-group1-id
-        :always-check-override false}
+        :always-check-override false
+        :never-seek-override false}
     alert1-id
       { :type :alert
         :matched-line "line-1"
@@ -56,7 +57,8 @@
         :file-last-size-b nil
         :file-last-modified-ms nil
         :watched-file-group-id file-group-default-id
-        :always-check-override false}
+        :always-check-override false
+        :never-seek-override false}
     alert3-id
       { :type :alert
         :matched-line "line-3"

@@ -13,7 +13,8 @@
        { \"file1\"
            { :line-regex \"^ERROR.*$\"
              :file-group \"file-group-1\"
-             :always-check-override true}
+             :always-check-override true
+             :never-seek-override true}
          \"file2\"
            { :line-regex \"^WARN.*$\"}
        }
@@ -28,11 +29,13 @@
       { "file1"
           { :line-regex #"^ERROR.*$"
             :file-group "file-group-1"
-            :always-check-override true}
+            :always-check-override true
+            :never-seek-override true}
         "file2"
           { :line-regex #"^WARN.*$"
             :file-group config/default-watched-file-group-name
-            :always-check-override false}}})
+            :always-check-override false
+            :never-seek-override false}}})
 
 
 (deftest configuration-validator-test
@@ -44,7 +47,10 @@
     (is (thrown? Exception (s/validate validators/configuration (dissoc valid-configuration :check-interval-ms))))
     (is (thrown? Exception (s/validate validators/configuration (dissoc valid-configuration :nagging-interval-ms))))
     (is (thrown? Exception (s/validate validators/configuration (dissoc valid-configuration :files))))
-    (is (thrown? Exception (s/validate validators/configuration (update-in valid-configuration [:files "file_path.log"] dissoc :line-regex)))))
+    (is (thrown? Exception (s/validate validators/configuration (update-in valid-configuration [:files "file_path.log"] dissoc :line-regex))))
+    (is (thrown? Exception (s/validate validators/configuration (update-in valid-configuration [:files "file_path.log"] dissoc :file-group))))
+    (is (thrown? Exception (s/validate validators/configuration (update-in valid-configuration [:files "file_path.log"] dissoc :always-check-override))))
+    (is (thrown? Exception (s/validate validators/configuration (update-in valid-configuration [:files "file_path.log"] dissoc :never-seek-override)))))
   (testing "extra entries are detected as errors"
     (is (thrown? Exception (s/validate validators/configuration (assoc valid-configuration :extra-key "extra value"))))))
 
@@ -61,4 +67,6 @@
       (is (= "file-group-1" (get-in cfg [:files "file1" :file-group])))
       (is (true?  (get-in cfg [:files "file1" :always-check-override])))
       (is (false? (get-in cfg [:files "file2" :always-check-override])))
+      (is (true?  (get-in cfg [:files "file1" :never-seek-override])))
+      (is (false? (get-in cfg [:files "file2" :never-seek-override])))
       (is (= config/default-watched-file-group-name (get-in cfg [:files "file2" :file-group]))))))

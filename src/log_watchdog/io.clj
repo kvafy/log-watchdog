@@ -8,3 +8,6 @@
 
 (defn file-last-modified-ms [^java.io.File file]
   (.lastModified file))
+
+(defn seek-reader! [reader offset]
+  (.skip reader offset))

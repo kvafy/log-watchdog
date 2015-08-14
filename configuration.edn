@@ -20,6 +20,12 @@
           :line-regex "^ERROR.*$"
           ; File group into which this file belongs (Optional key-value pair).
           :file-group "A"
+
+          ; Optional per-file options
+          ; Don't rely of reported file size and last modification timestamp. Check the file always.
+          ;:always-check-override true
+          ; Never try to skip bytes that have (supposedly) been read during the last file check. Read the whole file.
+          ;:never-seek-override true
         }
 
       ; Configuration of another file to check. This time we are interested also

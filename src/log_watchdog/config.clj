@@ -19,7 +19,8 @@
         { <file-path-1>
           { :line-regex <pattern>
             :file-group <string>
-            :always-check-override <boolean>}
+            :always-check-override <boolean>
+            :never-seek-override <boolean>}
           ...
         }
     }.
@@ -38,7 +39,8 @@
                             (for [file-name (keys (get-in raw-edn [:files]))]
                               {file-name {:line-regex (re-pattern (get-in raw-edn [:files file-name :line-regex]))
                                           :file-group (get-in raw-edn [:files file-name :file-group] default-watched-file-group-name)
-                                          :always-check-override (get-in raw-edn [:files file-name :always-check-override] false)}}))]
+                                          :always-check-override (get-in raw-edn [:files file-name :always-check-override] false)
+                                          :never-seek-override (get-in raw-edn [:files file-name :never-seek-override] false)}}))]
         {:check-interval-ms   (long (:check-interval-ms raw-edn))
          :nagging-interval-ms (long (:nagging-interval-ms raw-edn))
          :files               files-map}))))
