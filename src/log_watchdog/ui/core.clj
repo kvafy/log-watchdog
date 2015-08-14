@@ -39,7 +39,7 @@
                 (when (:check-enabled config-data)
                   (log/info "Checking files...")
                   (swap! system-state/system system-helpers/check-files)
-                  (log/debug @system-state/system))
+                  (log/tracef "System after file check: %s" @system-state/system))
                 (Thread/sleep (:check-interval-ms config-data))
                 (recur))))]
     (doto (Thread. system-updating-fn)
@@ -259,7 +259,6 @@
 ;; main entry point
 
 (defn -main [& args]
-  (utils/configure-logging!)
   (utils/try-let [configuration (config/load-configuration)]
     (do
       (system-state/reset-system! configuration)

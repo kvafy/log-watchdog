@@ -159,9 +159,10 @@
 (defn- check-file
   "Checks current alerts in given file and updates part of the system which represents this file."
   [system file-entity]
-  (let [[file-id file-data] file-entity]
-    (log/debugf "(perform-file-check? \"%s\") -> %s" (:file file-data) (perform-file-check? file-data))
-    (if-not (perform-file-check? file-data)
+  (let [[file-id file-data] file-entity
+        perform-file-check? (perform-file-check? file-data)]
+    (log/debugf "(perform-file-check? \"%s\") -> %s" (:file file-data) perform-file-check?)
+    (if-not perform-file-check?
       system
       (try
         (with-open [reader (clojure.java.io/reader (:file file-data))]
@@ -174,7 +175,7 @@
                                                            :file-last-modified-ms (log-watchdog.io/file-last-modified-ms (:file file-data)))]))))
         (catch java.io.IOException ex
           (do
-            (log/warn (format "Failed to read file '%s': %s" (:file file-data) ex))
+            (log/warnf "Failed to read file '%s': %s" (:file file-data) ex)
             (core/add-entity system [file-id (assoc file-data :last-check-failed true
                                                               :file-last-size-b nil
                                                               :file-last-modified-ms nil)])))))))
