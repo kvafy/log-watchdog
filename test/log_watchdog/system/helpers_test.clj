@@ -111,8 +111,8 @@
                                                             :matched-line (partial = tested-line)))))
       (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _]
                                                   (if (= file-path tested-file-path)
-                                                    (BufferedReader. (StringReader. tested-line))
-                                                    (BufferedReader. (StringReader. ""))))}
+                                                    (reader-for-string! tested-line)
+                                                    (reader-for-string! "")))}
         (fn []
           (let [system-new (helpers/check-files system-orig)]
             ; post-conditions
@@ -134,8 +134,8 @@
           tested-file-path (:file tested-file-data)]
       (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _]
                                                   (if (= file-path tested-file-path)
-                                                    (BufferedReader. (StringReader. (clojure.string/join "\r\n" [tested-line1 tested-line2])))
-                                                    (BufferedReader. (StringReader. ""))))}
+                                                    (reader-for-string! (clojure.string/join "\r\n" [tested-line1 tested-line2]))
+                                                    (reader-for-string! "")))}
         (fn []
           (let [system-new (helpers/check-files system-orig)]
             ; post-conditions
@@ -161,98 +161,61 @@
     (let [[tested-file-id tested-file-data-orig] (core/query-by-id system-orig file2-id)]
       ; pre-condition
       (is (true? (:last-check-failed tested-file-data-orig)))
-      (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (BufferedReader. (StringReader. "")))}
+      (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (reader-for-string! ""))}
         (fn []
           (let [system-new (helpers/check-files system-orig)
                 [_ tested-file-data-new] (core/query-by-id system-new tested-file-id)]
             ; post-conditions
             (validators/validate-system system-new)
             (is (false? (:last-check-failed tested-file-data-new))))))))
-  (testing "File not checked when last modified timestamp and file size don't change"
-    (let [last-modified-before-test 42
-          last-modified-during-test 42
-          size-before-test 100
-          size-during-test 100
-          [tested-file-id tested-file-data-orig :as tested-file] (core/query-by-id system-orig file1-id)]
-      ; Prepare the tested file for test and craft a new system for test
-      (let [tested-file-data-before (assoc tested-file-data-orig :file-last-size-b size-before-test
-                                                                 :file-last-modified-ms last-modified-before-test
-                                                                 :always-check-override false)
-            system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])
-            file-before (core/query-by-id system-before tested-file-id)
-            file-read? (atom false)]
-        (validators/validate-system system-before)
-        (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] true)
-                         #'log-watchdog.io/file-size (fn [file-path] size-during-test)
-                         #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
-                         #'clojure.java.io/reader (fn [file-path & _] (reset! file-read? true) (reader-for-string! ""))}
-          (fn []
-            (let [system-new (helpers/check-files system-before [file-before])]
-              (validators/validate-system system-new)
-              (is (false? @file-read?))))))))
-  (testing "When :always-check-override is true, file is checked"
-    (let [last-modified-before-test 42
-          last-modified-during-test 42
-          size-before-test 100
-          size-during-test 100
-          [tested-file-id tested-file-data-orig :as tested-file] (core/query-by-id system-orig file1-id)]
-      ; Prepare the tested file for test and craft a new system for test
-      (let [tested-file-data-before (assoc tested-file-data-orig :file-last-size-b size-before-test
-                                                                 :file-last-modified-ms last-modified-before-test
-                                                                 :always-check-override true)
-            system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])
-            file-before (core/query-by-id system-before tested-file-id)
-            file-read? (atom false)]
-        (validators/validate-system system-before)
-        (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] true)
-                         #'log-watchdog.io/file-size (fn [file-path] size-during-test)
-                         #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
-                         #'clojure.java.io/reader (fn [file-path & _] (reset! file-read? true) (reader-for-string! ""))}
-          (fn []
-            (let [system-new (helpers/check-files system-before [file-before])]
-              (validators/validate-system system-new)
-              (is (true? @file-read?))))))))
-  (testing "File checked when last modified timestamp changes"
-    (let [last-modified-before-test 42
-          last-modified-during-test 43
-          size-before-test 100
-          size-during-test 100
-          [tested-file-id tested-file-data-orig :as tested-file] (core/query-by-id system-orig file1-id)]
-      ; Prepare the tested file for test and craft a new system for test
-      (let [tested-file-data-before (assoc tested-file-data-orig :file-last-size-b size-before-test
-                                                                 :file-last-modified-ms last-modified-before-test
-                                                                 :always-check-override false)
-            system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])
-            file-before (core/query-by-id system-before tested-file-id)
-            file-read? (atom false)]
-        (validators/validate-system system-before)
-        (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] true)
-                         #'log-watchdog.io/file-size (fn [file-path] size-during-test)
-                         #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
-                         #'clojure.java.io/reader (fn [file-path & _] (reset! file-read? true) (reader-for-string! ""))}
-          (fn []
-            (let [system-new (helpers/check-files system-before [file-before])]
-              (validators/validate-system system-new)
-              (is (true? @file-read?))))))))
-  (testing "File checked when file size changes"
-    (let [last-modified-before-test 42
-          last-modified-during-test 42
-          size-before-test 100
-          size-during-test 11
-          [tested-file-id tested-file-data-orig :as tested-file] (core/query-by-id system-orig file1-id)]
-      ; Prepare the tested file for test and craft a new system for test
-      (let [tested-file-data-before (assoc tested-file-data-orig :file-last-size-b size-before-test
-                                                                 :file-last-modified-ms last-modified-before-test
-                                                                 :always-check-override false)
-            system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])
-            file-before (core/query-by-id system-before tested-file-id)
-            file-read? (atom false)]
-        (validators/validate-system system-before)
-        (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] true)
-                         #'log-watchdog.io/file-size (fn [file-path] size-during-test)
-                         #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
-                         #'clojure.java.io/reader (fn [file-path & _] (reset! file-read? true) (reader-for-string! ""))}
-          (fn []
-            (let [system-new (helpers/check-files system-before [file-before])]
-              (validators/validate-system system-new)
-              (is (true? @file-read?)))))))))
+  (letfn [(file-is-physically-read?-test-fn
+           [{:keys [last-modified-before-test last-modified-during-test
+                    size-before-test size-during-test
+                    expected-file-read?
+                    always-check-override]}]
+            (let [tested-file-id file1-id
+                  [_ tested-file-data-orig :as tested-file] (core/query-by-id system-orig tested-file-id)]
+              ; Prepare the tested file for test and craft a new system for test
+              (let [tested-file-data-before (assoc tested-file-data-orig :file-last-size-b size-before-test
+                                                                         :file-last-modified-ms last-modified-before-test
+                                                                         :always-check-override always-check-override)
+                    system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])
+                    file-before (core/query-by-id system-before tested-file-id)
+                    file-read? (atom false)]
+                (validators/validate-system system-before)
+                (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] true)
+                                 #'log-watchdog.io/file-size (fn [file-path] size-during-test)
+                                 #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
+                                 #'clojure.java.io/reader (fn [file-path & _] (reset! file-read? true) (reader-for-string! ""))}
+                  (fn []
+                    (let [system-new (helpers/check-files system-before [file-before])]
+                      (validators/validate-system system-new)
+                      (is (= expected-file-read? @file-read?))))))))]
+    (testing "File not checked when last modified timestamp and file size don't change"
+      (file-is-physically-read?-test-fn {:last-modified-before-test 42
+                                         :last-modified-during-test 42
+                                         :size-before-test 100
+                                         :size-during-test 100
+                                         :expected-file-read? false
+                                         :always-check-override false}))
+    (testing "When :always-check-override is true, file is checked"
+      (file-is-physically-read?-test-fn {:last-modified-before-test 42
+                                         :last-modified-during-test 42
+                                         :size-before-test 100
+                                         :size-during-test 100
+                                         :expected-file-read? true
+                                         :always-check-override true}))
+    (testing "File checked when last modified timestamp changes"
+      (file-is-physically-read?-test-fn {:last-modified-before-test 42
+                                         :last-modified-during-test 43
+                                         :size-before-test 100
+                                         :size-during-test 100
+                                         :expected-file-read? true
+                                         :always-check-override false}))
+    (testing "File checked when file size changes"
+      (file-is-physically-read?-test-fn {:last-modified-before-test 42
+                                         :last-modified-during-test 42
+                                         :size-before-test 100
+                                         :size-during-test 11
+                                         :expected-file-read? true
+                                         :always-check-override false}))))
