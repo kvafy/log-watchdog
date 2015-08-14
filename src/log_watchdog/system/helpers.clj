@@ -152,9 +152,11 @@
   (let [file (:file file-data)]
     (if-not (log-watchdog.io/file-exists? file)
       true ; perform the check - the checking mechanism needs to fail and take a note about it
-      (or (not= (log-watchdog.io/file-last-modified-ms file) (:file-last-modified-ms file-data))
+      (or (nil? (:file-last-modified-ms file-data))
+          (not= (log-watchdog.io/file-last-modified-ms file) (:file-last-modified-ms file-data))
+          (nil? (:file-last-size-b file-data))
           (not= (log-watchdog.io/file-size file) (:file-last-size-b file-data))
-          (:always-check-override file-data)))))
+          (true? (:always-check-override file-data))))))
 
 (defn- perform-file-seek? [file-data]
   (let [file (:file file-data)]

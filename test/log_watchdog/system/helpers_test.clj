@@ -218,6 +218,20 @@
                                          :size-before-test 100
                                          :size-during-test 11
                                          :expected-file-read? true
+                                         :always-check-override false}))
+    (testing "File checked when previous file size is unknown"
+      (file-is-physically-read?-test-fn {:last-modified-before-test 42
+                                         :last-modified-during-test 42
+                                         :size-before-test nil
+                                         :size-during-test 100
+                                         :expected-file-read? true
+                                         :always-check-override false}))
+    (testing "File checked when previous last modified timestamp is unknown"
+      (file-is-physically-read?-test-fn {:last-modified-before-test nil
+                                         :last-modified-during-test 42
+                                         :size-before-test 100
+                                         :size-during-test 100
+                                         :expected-file-read? true
                                          :always-check-override false})))
   (letfn [(file-is-seeked?-test-fn
            [{:keys [size-before-test size-during-test
