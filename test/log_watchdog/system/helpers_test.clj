@@ -101,51 +101,61 @@
 
 
 (deftest check-files-test
-  (testing "New alert is detected"
-    (let [tested-file-id file1-id
-          tested-line "This is a new error"
-          [_ tested-file-data] (core/query-by-id system-orig tested-file-id)
-          tested-file-path (:file tested-file-data)]
-      ; pre-conditions
-      (is (empty? (core/query system-orig (core/entity-pred :type (partial = :alert)
-                                                            :matched-line (partial = tested-line)))))
-      (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _]
-                                                  (if (= file-path tested-file-path)
-                                                    (reader-for-string! tested-line)
-                                                    (reader-for-string! "")))}
-        (fn []
-          (let [system-new (helpers/check-files system-orig)]
-            ; post-conditions
-            (validators/validate-system system-new)
-            (let [alerts-orig (core/query system-orig (core/entity-pred :type (partial = :alert)))
-                  alerts-new  (core/query system-new  (core/entity-pred :type (partial = :alert)))]
-              (= (count alerts-orig)
-                 (dec (count alerts-new))))
-            (let [new-alert-query-result (core/query system-new (core/entity-pred :type (partial = :alert)
-                                                                                  :matched-line (partial = tested-line)))]
-              (is (= 1 (count new-alert-query-result)))
-              (let [[new-alert-id new-alert-data] (first new-alert-query-result)]
-                (is (false? (:acknowledged new-alert-data))))))))))
-  (testing "Existing alerts are updated"
-    (let [tested-file-id file1-id
-          tested-line1 "line-1"
-          tested-line2 "line-2"
-          [_ tested-file-data] (core/query-by-id system-orig tested-file-id)
-          tested-file-path (:file tested-file-data)]
-      (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _]
-                                                  (if (= file-path tested-file-path)
-                                                    (reader-for-string! (clojure.string/join "\r\n" [tested-line1 tested-line2]))
-                                                    (reader-for-string! "")))}
-        (fn []
-          (let [system-new (helpers/check-files system-orig)]
-            ; post-conditions
-            (validators/validate-system system-new)
-            (let [alerts-orig (core/query system-orig (core/entity-pred :type (partial = :alert)))
-                  alerts-new  (core/query system-new  (core/entity-pred :type (partial = :alert)))]
-              ; no alert is added or removed
-              (is (= (count alerts-orig) (count alerts-new)))
-              ; for now, all properties stay the same for known alerts
-              (is (= alerts-orig alerts-new))))))))
+  (letfn [(alerts->alert-lines [alerts] (->> alerts
+                                             (map (fn [[_ alert-data]] (:matched-line alert-data)))
+                                             (set)))
+          (alert-change-test-fn
+           [{:keys [tested-file-id
+                    lines-during-test
+                    lines-during-test-already-have-alerts
+                    lines-not-present-after]}]
+             ; Prepare the tested file for test (force always check, never seek)
+             (let [[_ tested-file-data-orig] (core/query-by-id system-orig tested-file-id)
+                   tested-file-data-before (assoc tested-file-data-orig :always-check-override true
+                                                                        :never-seek-override true)
+                   system-before (core/add-entity system-orig [tested-file-id tested-file-data-before])]
+               (validators/validate-system system-before)
+               ; pre-conditions
+               (let [alerts-before (core/query system-before (core/entity-pred :type (partial = :alert)
+                                                                               :watched-file-id (partial = tested-file-id)))
+                     alert-lines-before (alerts->alert-lines alerts-before)]
+                 (if lines-during-test-already-have-alerts
+                   (is (every?   #(alert-lines-before %) lines-during-test))
+                   (is (not-any? #(alert-lines-before %) lines-during-test)))
+                 (is (every? #(alert-lines-before %) lines-not-present-after)))
+               (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (reader-for-string! (clojure.string/join "\n" lines-during-test)))}
+                 (fn []
+                   (let [system-after (helpers/check-files system-before)]
+                     ; post-conditions
+                     (validators/validate-system system-after)
+                     (let [alerts-after  (core/query system-after  (core/entity-pred :type (partial = :alert)
+                                                                                     :watched-file-id (partial = tested-file-id)))
+                           alert-lines-after (alerts->alert-lines alerts-after)]
+                       (is (every? #(alert-lines-after %) lines-during-test))
+                       (is (every? (fn [[alert-id alert-data-after]]
+                                     (if lines-during-test-already-have-alerts
+                                       ; all alerts for tested lines are already existing alerts
+                                       (let [[_ alert-data-before] (core/query-by-id system-after alert-id)]
+                                         (= alert-data-before alert-data-after))
+                                       ; all alerts for tested lines are new alerts
+                                       (false? (:acknowledged alert-data-after))))
+                                   alerts-after))
+                       (is (not-any? #(alert-lines-after %) lines-not-present-after))))))))]
+    (testing "New alert is detected"
+      (alert-change-test-fn {:tested-file-id file2-id
+                             :lines-during-test ["This is a new error"]
+                             :lines-during-test-already-have-alerts false
+                             :lines-not-present-after []}))
+    (testing "Existing alerts are updated"
+      (alert-change-test-fn {:tested-file-id file1-id
+                             :lines-during-test ["line-1" "line-2"]
+                             :lines-during-test-already-have-alerts true
+                             :lines-not-present-after []}))
+    (testing "Alerts not present anymore are removed from the system"
+      (alert-change-test-fn {:tested-file-id file1-id
+                             :lines-during-test []
+                             :lines-during-test-already-have-alerts false
+                             :lines-not-present-after ["line-1" "line-2"]})))
   (letfn [(file-availability-test-fn
           [{:keys [tested-file-id
                    file-exists? size-during-test last-modified-during-test

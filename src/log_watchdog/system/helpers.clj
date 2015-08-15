@@ -134,19 +134,25 @@
                                                              :watched-file-id (partial contains? file-ids-to-ack)))]
       (reduce acknowledge-alert system alerts-to-ack))))
 
-(defn- create-or-update-alerts [system file-id matched-alert-lines]
-  (reduce (fn [sys matched-line]
-            (if-let [[alert-id alert-data] (core/query-singleton sys (core/entity-pred :type (partial = :alert)
-                                                                                       :matched-line (partial = matched-line)
-                                                                                       :watched-file-id (partial = file-id)))]
-              sys
-              (core/add-entity sys
-                               (core/create-entity :alert
-                                                   :matched-line matched-line
-                                                   :acknowledged false
-                                                   :watched-file-id file-id))))
-          system
-          matched-alert-lines))
+(defn- update-alerts [system file-id matched-alert-lines delete-alerts-not-present-now?]
+  (let [prev-file-alerts (core/query system (core/entity-pred :type (partial = :alert)
+                                                              :watched-file-id (partial = file-id)))
+        prev-alert-lines (->> prev-file-alerts
+                              (map (fn [[_ alert-data]] (:matched-line alert-data)))
+                              (set))
+        cur-alert-lines (set matched-alert-lines)
+        alert-lines-to-add (clojure.set/difference cur-alert-lines prev-alert-lines)
+        alerts-to-add (map (fn [line]
+                             (core/create-entity :alert
+                                                 :matched-line line
+                                                 :acknowledged false
+                                                 :watched-file-id file-id))
+                           alert-lines-to-add)
+        alert-lines-to-remove (if-not delete-alerts-not-present-now? (hash-set) (clojure.set/difference prev-alert-lines cur-alert-lines))
+        alerts-to-remove (filter (fn [[_ alert-data]] (alert-lines-to-remove (:matched-line alert-data))) prev-file-alerts)]
+    (-> system
+        (#(reduce core/add-entity % alerts-to-add))
+        (#(reduce core/remove-entity % alerts-to-remove)))))
 
 (defn- perform-file-check? [file-data]
   (let [file (:file file-data)]
@@ -173,15 +179,16 @@
       system
       (try
         (with-open [reader (clojure.java.io/reader (:file file-data))]
-          (when (log/spy :debug (perform-file-seek? file-data))
-            (log-watchdog.io/seek-reader! reader (:file-last-size-b file-data)))
-          (let [matched-lines (->> (line-seq reader)
-                                   (filter #(re-matches (:line-regex file-data) %)))]
-            (-> system
-                (create-or-update-alerts file-id matched-lines)
-                (core/add-entity [file-id (assoc file-data :last-check-failed false
-                                                           :file-last-size-b (log-watchdog.io/file-size (:file file-data))
-                                                           :file-last-modified-ms (log-watchdog.io/file-last-modified-ms (:file file-data)))]))))
+          (let [seek-reader? (log/spy :debug (perform-file-seek? file-data))]
+            (when seek-reader?
+              (log-watchdog.io/seek-reader! reader (:file-last-size-b file-data)))
+            (let [matched-lines (->> (line-seq reader)
+                                     (filter #(re-matches (:line-regex file-data) %)))]
+              (-> system
+                  (update-alerts file-id matched-lines (not seek-reader?))
+                  (core/add-entity [file-id (assoc file-data :last-check-failed false
+                                                             :file-last-size-b (log-watchdog.io/file-size (:file file-data))
+                                                             :file-last-modified-ms (log-watchdog.io/file-last-modified-ms (:file file-data)))])))))
         (catch java.io.IOException ex
           (do
             (log/warnf "Failed to read file '%s': %s" (:file file-data) ex)
