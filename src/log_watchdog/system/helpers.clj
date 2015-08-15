@@ -33,8 +33,7 @@
     base-entity
     (let [[_ base-data] base-entity
           ref-id (get base-data (first referenced-entity-id-keys))
-          ref-data (get system ref-id)
-          ref-entity [ref-id ref-data]]
+          ref-entity (core/query-by-id system ref-id)]
       (recur system ref-entity (next referenced-entity-id-keys)))))
 
 (defn group-entities-by-referenced-entity
@@ -42,10 +41,10 @@
   and this key references an entity.
   The function groups the given entities by referenced entity into a map
   of form {referenced-entity [entities-to-group]}"
-  [system entities-to-group & referenced-entity-id-keys]
+  [system entities & referenced-entity-id-keys]
   (letfn [(grouping-fn [ent]
             (apply referenced-entity system ent referenced-entity-id-keys))]
-    (group-by grouping-fn entities-to-group)))
+    (group-by grouping-fn entities)))
 
 (defn files-by-file-group
   "Returns a map {watched-file-group-entity [watched-file-entity]}."
