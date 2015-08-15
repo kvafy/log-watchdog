@@ -10,6 +10,13 @@
 
 ; Note: A lot of definitions are imported from log-watchdog.system.core-test namespace
 
+
+; Turn off loggging to prevent test output to be cluttered with unimportant messages.
+
+(doto (org.apache.log4j.Logger/getRootLogger)
+  (.setLevel org.apache.log4j.Level/OFF))
+
+
 (defn reader-for-string! [string]
   (BufferedReader. (StringReader. string)))
 
