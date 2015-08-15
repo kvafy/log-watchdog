@@ -54,6 +54,16 @@
                                        (core/query system (core/entity-pred :type (partial = :watched-file)))
                                        :watched-file-group-id))
 
+(defn alerts [system]
+  (core/query system (core/entity-pred :type (partial = :alert))))
+
+(defn alerts-by-file
+  "Returns a map {watched-file-entity [alert-entity]}."
+  [system]
+  (group-entities-by-referenced-entity system
+                                       (alerts system)
+                                       :watched-file-id))
+
 (defn unacknowledged-alerts [system]
   (core/query system (core/entity-pred :type (partial = :alert)
                                        :acknowledged false?)))

@@ -1,5 +1,6 @@
 (ns log-watchdog.ui.messages
-  (:require [log-watchdog.ui.utils :as ui-utils]))
+  (:require [log-watchdog.ui.utils :as ui-utils]
+            [log-watchdog.system.helpers :as system-helpers]))
 
 
 (defn short-status [{:keys [unacked-alerts-by-file unacked-alerts-by-group unreadable-files-by-group uses-groups?] :as info-map}]
@@ -85,3 +86,37 @@
                               (format "'%s' group (%s)" (:name gr-data) (clojure.string/join ", " msgs))))
                             groups-to-report)]
     (clojure.string/join "\n" per-group-msgs)))
+
+(defn pretty-str [obj]
+  (binding [*out* (java.io.StringWriter.)]
+    (clojure.pprint/pprint obj)
+    (.toString *out*)))
+
+(defn system-statistics
+  "Returns a nice statistics map capturing state of the system:
+   { <file-group-name>
+     { <absolute-file-path>
+       { 'total alerts' <number>
+         'unacked alerts' <number>}
+       <another-absolute-file-path>
+       { ... }}
+     <another-file-group-name>
+     { ... }}"
+  [system]
+  (let [alerts-by-file (system-helpers/alerts-by-file system)
+        unacked-alerts-by-file (system-helpers/unacknowledged-alerts-by-file system)]
+    (letfn [(transform-files-by-group [files-by-group]
+              (apply sorted-map
+                     (mapcat (fn [[group files]]
+                               (let [[_ group-data] group]
+                                 (list (format "File group '%s'" (:name group-data))
+                                       (apply sorted-map
+                                              (mapcat (fn [[_ file-data :as file]]
+                                                        (list (format "File '%s'" (.getAbsolutePath (:file file-data)))
+                                                              (sorted-map "total alerts" (count (alerts-by-file file))
+                                                                          "unacked alerts" (count (unacked-alerts-by-file file)))))
+                                                      (sort-by (fn [[_ file-data]] (.getAbsolutePath (:file file-data))) files))))))
+                             (sort-by (fn [[_ group-data] _] (:name group-data)) files-by-group))))]
+      (-> system
+          (system-helpers/files-by-file-group)
+          (transform-files-by-group)))))

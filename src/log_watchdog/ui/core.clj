@@ -38,8 +38,9 @@
               (let [config-data (system-helpers/configuration-data @system-state/system)]
                 (when (:check-enabled config-data)
                   (log/info "Checking files...")
-                  (swap! system-state/system system-helpers/check-files)
-                  (log/tracef "System after file check: %s" @system-state/system))
+                  (let [new-system (swap! system-state/system system-helpers/check-files)]
+                    (log/debugf "System statistics after file check:\n%s" (messages/pretty-str (messages/system-statistics @system-state/system)))
+                    (log/tracef "System after file check:\n%s" (messages/pretty-str new-system))))
                 (Thread/sleep (:check-interval-ms config-data))
                 (recur))))]
     (doto (Thread. system-updating-fn)
