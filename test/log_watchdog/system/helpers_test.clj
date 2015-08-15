@@ -146,29 +146,54 @@
               (is (= (count alerts-orig) (count alerts-new)))
               ; for now, all properties stay the same for known alerts
               (is (= alerts-orig alerts-new))))))))
-  (testing "File becomes unavailable"
-    (let [[tested-file-id tested-file-data-orig] (core/query-by-id system-orig file1-id)]
-      ; pre-condition
-      (is (false? (:last-check-failed tested-file-data-orig)))
-      (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (throw (java.io.IOException. "")))}
-        (fn []
-          (let [system-new (helpers/check-files system-orig)
-                [_ tested-file-data-new] (core/query-by-id system-new tested-file-id)]
-            ; post-condition
-            (validators/validate-system system-new)
-            (is (true? (:last-check-failed tested-file-data-new))))))))
-  (testing "File becomes available"
-    (let [[tested-file-id tested-file-data-orig] (core/query-by-id system-orig file2-id)]
-      ; pre-condition
-      (is (true? (:last-check-failed tested-file-data-orig)))
-      (with-redefs-fn {#'clojure.java.io/reader (fn [file-path & _] (reader-for-string! ""))}
-        (fn []
-          (let [system-new (helpers/check-files system-orig)
-                [_ tested-file-data-new] (core/query-by-id system-new tested-file-id)]
-            ; post-conditions
-            (validators/validate-system system-new)
-            (is (false? (:last-check-failed tested-file-data-new))))))))
-  (letfn [(file-is-physically-read?-test-fn
+  (letfn [(file-availability-test-fn
+          [{:keys [tested-file-id
+                   file-exists? size-during-test last-modified-during-test
+                   reader-behavior
+                   expected-last-check-failed-before expected-last-check-failed-after
+                   expected-last-modified-ms-after expected-last-size-b-after]}]
+           (let [[_ tested-file-data-orig] (core/query-by-id system-orig tested-file-id)]
+             ; pre-condition
+             (is (= expected-last-check-failed-before (:last-check-failed tested-file-data-orig)))
+             (with-redefs-fn {#'log-watchdog.io/file-exists? (fn [file-path] file-exists?)
+                              #'log-watchdog.io/file-size (fn [file-path] size-during-test)
+                              #'log-watchdog.io/file-last-modified-ms (fn [file-path] last-modified-during-test)
+                              #'clojure.java.io/reader (fn [file-path & _] (reader-behavior))}
+               (fn []
+                 (let [system-new (helpers/check-files system-orig)]
+                   ; post-conditions
+                   (validators/validate-system system-new)
+                   (let [[_ tested-file-data-new] (core/query-by-id system-new tested-file-id)]
+                     (is (= expected-last-check-failed-after (:last-check-failed tested-file-data-new)))
+                     (is (= expected-last-modified-ms-after (:file-last-modified-ms tested-file-data-new)))
+                     (is (= expected-last-size-b-after (:file-last-size-b tested-file-data-new)))))))))]
+    (testing "File becomes unavailable (non-existent)"
+      (file-availability-test-fn {:tested-file-id file1-id
+                                  :file-exists? false
+                                  :reader-behavior (fn [] (throw (java.io.FileNotFoundException.)))
+                                  :expected-last-check-failed-before false
+                                  :expected-last-check-failed-after true
+                                  :expected-last-modified-ms-after  nil
+                                  :expected-last-size-b-after nil}))
+    (testing "File exists but IOException occurs"
+      (file-availability-test-fn {:tested-file-id file1-id
+                                  :file-exists? true
+                                  :reader-behavior (fn [] (throw (java.io.IOException. "Some unexpected error")))
+                                  :expected-last-check-failed-before false
+                                  :expected-last-check-failed-after true
+                                  :expected-last-modified-ms-after  nil
+                                  :expected-last-size-b-after nil}))
+    (testing "File becomes available"
+      (file-availability-test-fn {:tested-file-id file2-id
+                                  :file-exists? true
+                                  :last-modified-during-test 100
+                                  :size-during-test 42
+                                  :reader-behavior (fn [] (reader-for-string! ""))
+                                  :expected-last-check-failed-before true
+                                  :expected-last-check-failed-after false
+                                  :expected-last-modified-ms-after  100
+                                  :expected-last-size-b-after 42})))
+  (letfn [(file-physically-read?-test-fn
            [{:keys [last-modified-before-test last-modified-during-test
                     size-before-test size-during-test
                     expected-file-read?
@@ -192,48 +217,48 @@
                       (validators/validate-system system-new)
                       (is (= expected-file-read? @file-read?))))))))]
     (testing "File not checked when last modified timestamp and file size don't change"
-      (file-is-physically-read?-test-fn {:last-modified-before-test 42
-                                         :last-modified-during-test 42
-                                         :size-before-test 100
-                                         :size-during-test 100
-                                         :expected-file-read? false
-                                         :always-check-override false}))
+      (file-physically-read?-test-fn {:last-modified-before-test 42
+                                      :last-modified-during-test 42
+                                      :size-before-test 100
+                                      :size-during-test 100
+                                      :expected-file-read? false
+                                      :always-check-override false}))
     (testing "When :always-check-override is true, file is checked"
-      (file-is-physically-read?-test-fn {:last-modified-before-test 42
-                                         :last-modified-during-test 42
-                                         :size-before-test 100
-                                         :size-during-test 100
-                                         :expected-file-read? true
-                                         :always-check-override true}))
+      (file-physically-read?-test-fn {:last-modified-before-test 42
+                                      :last-modified-during-test 42
+                                      :size-before-test 100
+                                      :size-during-test 100
+                                      :expected-file-read? true
+                                      :always-check-override true}))
     (testing "File checked when last modified timestamp changes"
-      (file-is-physically-read?-test-fn {:last-modified-before-test 42
-                                         :last-modified-during-test 43
-                                         :size-before-test 100
-                                         :size-during-test 100
-                                         :expected-file-read? true
-                                         :always-check-override false}))
+      (file-physically-read?-test-fn {:last-modified-before-test 42
+                                      :last-modified-during-test 43
+                                      :size-before-test 100
+                                      :size-during-test 100
+                                      :expected-file-read? true
+                                      :always-check-override false}))
     (testing "File checked when file size changes"
-      (file-is-physically-read?-test-fn {:last-modified-before-test 42
-                                         :last-modified-during-test 42
-                                         :size-before-test 100
-                                         :size-during-test 11
-                                         :expected-file-read? true
-                                         :always-check-override false}))
+      (file-physically-read?-test-fn {:last-modified-before-test 42
+                                      :last-modified-during-test 42
+                                      :size-before-test 100
+                                      :size-during-test 11
+                                      :expected-file-read? true
+                                      :always-check-override false}))
     (testing "File checked when previous file size is unknown"
-      (file-is-physically-read?-test-fn {:last-modified-before-test 42
-                                         :last-modified-during-test 42
-                                         :size-before-test nil
-                                         :size-during-test 100
-                                         :expected-file-read? true
-                                         :always-check-override false}))
+      (file-physically-read?-test-fn {:last-modified-before-test 42
+                                      :last-modified-during-test 42
+                                      :size-before-test nil
+                                      :size-during-test 100
+                                      :expected-file-read? true
+                                      :always-check-override false}))
     (testing "File checked when previous last modified timestamp is unknown"
-      (file-is-physically-read?-test-fn {:last-modified-before-test nil
-                                         :last-modified-during-test 42
-                                         :size-before-test 100
-                                         :size-during-test 100
-                                         :expected-file-read? true
-                                         :always-check-override false})))
-  (letfn [(file-is-seeked?-test-fn
+      (file-physically-read?-test-fn {:last-modified-before-test nil
+                                      :last-modified-during-test 42
+                                      :size-before-test 100
+                                      :size-during-test 100
+                                      :expected-file-read? true
+                                      :always-check-override false})))
+  (letfn [(file-seeked?-test-fn
            [{:keys [size-before-test size-during-test
                     expected-file-reader-seek-offset
                     never-seek-override]}]
@@ -261,27 +286,27 @@
                       (validators/validate-system system-new)
                       (is (= expected-file-reader-seek-offset @file-reader-seek-offset))))))))]
     (testing "File reader seeked when file size increases"
-      (file-is-seeked?-test-fn {:size-before-test 100
-                                :size-during-test 1000
-                                :expected-file-reader-seek-offset 100
-                                :never-seek-override false}))
+      (file-seeked?-test-fn {:size-before-test 100
+                             :size-during-test 1000
+                             :expected-file-reader-seek-offset 100
+                             :never-seek-override false}))
     (testing "File reader NOT seeked when the override is set"
-      (file-is-seeked?-test-fn {:size-before-test 100
-                                :size-during-test 1000
-                                :expected-file-reader-seek-offset nil
-                                :never-seek-override true}))
+      (file-seeked?-test-fn {:size-before-test 100
+                             :size-during-test 1000
+                             :expected-file-reader-seek-offset nil
+                             :never-seek-override true}))
     (testing "File reader NOT seeked when file size doesn't change"
-      (file-is-seeked?-test-fn {:size-before-test 100
-                                :size-during-test 100
-                                :expected-file-reader-seek-offset nil
-                                :never-seek-override false}))
+      (file-seeked?-test-fn {:size-before-test 100
+                             :size-during-test 100
+                             :expected-file-reader-seek-offset nil
+                             :never-seek-override false}))
     (testing "File reader NOT seeked when file size decreases"
-      (file-is-seeked?-test-fn {:size-before-test 100
-                                :size-during-test 10
-                                :expected-file-reader-seek-offset nil
-                                :never-seek-override false}))
+      (file-seeked?-test-fn {:size-before-test 100
+                             :size-during-test 10
+                             :expected-file-reader-seek-offset nil
+                             :never-seek-override false}))
     (testing "File reader NOT seeked when previous file size is unknown"
-      (file-is-seeked?-test-fn {:size-before-test nil
-                                :size-during-test 100
-                                :expected-file-reader-seek-offset nil
-                                :never-seek-override false}))))
+      (file-seeked?-test-fn {:size-before-test nil
+                             :size-during-test 100
+                             :expected-file-reader-seek-offset nil
+                             :never-seek-override false}))))
