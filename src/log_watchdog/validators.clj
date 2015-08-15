@@ -54,7 +54,7 @@
 
 (defmethod entity-validator :watched-file-group [entity]
   { :type s/Keyword
-    :name (s/maybe s/Str)}) ; default file group has nil for name
+    :name s/Str})
 
 (defmethod entity-validator :alert [entity]
   { :type s/Keyword

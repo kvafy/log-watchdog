@@ -75,7 +75,7 @@
         :name "group1"}
     file-group-default-id
       { :type :watched-file-group
-        :name nil}
+        :name config/default-watched-file-group-name}
 
     notifications-id
       { :type :notifications
