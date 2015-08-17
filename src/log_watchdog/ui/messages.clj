@@ -116,7 +116,7 @@
                                                               (sorted-map "total alerts" (count (alerts-by-file file))
                                                                           "unacked alerts" (count (unacked-alerts-by-file file)))))
                                                       (sort-by (fn [[_ file-data]] (.getAbsolutePath (:file file-data))) files))))))
-                             (sort-by (fn [[_ group-data] _] (:name group-data)) files-by-group))))]
+                             (sort-by (fn [[[_ group-data] _]] (:name group-data)) files-by-group))))]
       (-> system
           (system-helpers/files-by-file-group)
           (transform-files-by-group)))))
