@@ -72,7 +72,7 @@
   { :type s/Keyword
     :value java.awt.TrayIcon})
 
-(defmethod entity-validator :ui-ack-alerts-menu-button [entity]
+(defmethod entity-validator :ui-ack-and-show-alerts-menu-button [entity]
   { :type s/Keyword
     :value java.awt.MenuItem
     :linked-entity-id (s/maybe s/Uuid)})

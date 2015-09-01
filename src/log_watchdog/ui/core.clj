@@ -63,7 +63,7 @@
     (.setToolTip (messages/short-status info-map))))
 
 (defn update-alert-acknowledging-menu-items! [{:keys [cur-system unacked-alerts unacked-alerts-by-file unacked-alerts-by-group]}]
-  (let [ack-btn-entities (system-core/query cur-system (system-core/entity-pred :type (partial = :ui-ack-alerts-menu-button)))]
+  (let [ack-btn-entities (system-core/query cur-system (system-core/entity-pred :type (partial = :ui-ack-and-show-alerts-menu-button)))]
     (doseq [[_ ack-btn-data] ack-btn-entities]
       (let [[_ linked-entity-data :as linked-entity] (system-core/query-by-id cur-system (:linked-entity-id ack-btn-data))]
         (condp = (:type linked-entity-data)
@@ -129,11 +129,8 @@
 
 ;; menu actions
 
-(defn ack-alerts
-  ([]
-    (swap! system-state/system system-helpers/acknowledge-alerts))
-  ([files]
-    (swap! system-state/system system-helpers/acknowledge-alerts files)))
+(defn ack-alerts [files]
+  (swap! system-state/system system-helpers/acknowledge-alerts files))
 
 (defn show-status []
   (let [cur-system @system-state/system
@@ -154,55 +151,57 @@
   (System/exit 0))
 
 (defn open-all-files-with-alerts []
-  (let [unacked-alerts-by-file (system-helpers/unacknowledged-alerts-by-file @system-state/system)
-        unacked-files (keys unacked-alerts-by-file)
-        unacked-file-paths (map (fn [[_ file-data]] (:file file-data)) unacked-files)]
-    (apply ui-utils/open-files unacked-file-paths)))
+  (let [unacked-files (system-helpers/unacknowledged-files @system-state/system)]
+    (ui-utils/open-files unacked-files)))
 
 
 ;; UI creation
 
-(defn create-menu-button-entity-to-ack-alerts
+(defn create-menu-button-entity-to-ack-and-show-alerts
   ([label]
-    ; acknowledge all alerts in all files in the system
-    (let [menu-item (ui-utils/create-menu-item label (fn [] (ack-alerts)))]
-      (create-ui-entity :ui-ack-alerts-menu-button
+    ; acknowledge and show all alerts in all files in the system
+    (let [action (fn []
+                   (let [files (system-helpers/unacknowledged-files @system-state/system)]
+                     (ack-alerts files) (ui-utils/open-files files)))
+          menu-item (ui-utils/create-menu-item label action)]
+      (create-ui-entity :ui-ack-and-show-alerts-menu-button
                         menu-item
                         :linked-entity-id nil)))
-  ; acknowledge alerts only in specified files (used for file groups & individual files)
+  ; acknowledge and show alerts only in specified files (used for file groups & individual files)
   ([label files linked-entity-id]
-    (let [menu-item (ui-utils/create-menu-item label (fn [] (ack-alerts files)))]
-      (create-ui-entity :ui-ack-alerts-menu-button
+    (let [action (fn [] (ack-alerts files) (ui-utils/open-files files))
+          menu-item (ui-utils/create-menu-item label action)]
+      (create-ui-entity :ui-ack-and-show-alerts-menu-button
                         menu-item
                         :linked-entity-id linked-entity-id))))
 
-(defn create-menu-button-entities-to-ack-alerts-in-group
+(defn create-menu-button-entities-to-ack-and-show-alerts-in-group
   "Creates following menu buttons for a file group of n files (in the order bellow):
     * 1 button to acknowledge alerts in all files in the group
     * n buttons to acknowledge alerts in individual files.
   If the group has only one file, creates only the per-group button."
   [group group-files]
   (let [[gr-id gr-data] group
-        group-button (create-menu-button-entity-to-ack-alerts (format "In '%s' group" (:name gr-data))
-                                                              group-files
-                                                              gr-id)
+        group-button (create-menu-button-entity-to-ack-and-show-alerts (format "In '%s' group" (:name gr-data))
+                                                                       group-files
+                                                                       gr-id)
         file-buttons (map (fn [[f-id f-data :as file]]
                             (let [[file-name _] (ui-utils/file-name-and-dir (:file f-data))]
-                              (create-menu-button-entity-to-ack-alerts (format "In '%s' file" file-name)
-                                                                       [file]
-                                                                       f-id)))
+                              (create-menu-button-entity-to-ack-and-show-alerts (format "In '%s' file" file-name)
+                                                                                [file]
+                                                                                f-id)))
                           group-files)]
     (if (= 1 (count group-files))
       [group-button]
       (cons group-button file-buttons))))
 
-(defn create-and-add-menu-buttons-to-ack-alerts! [system root-menu]
+(defn create-and-add-menu-buttons-to-ack-and-show-alerts! [system root-menu]
   ; First, add buttons for file groups and individual files...
   (let [files-by-group (system-helpers/files-by-file-group system)
         [system _] (reduce (fn [[sys add-separator?] [group files]]
                              (when add-separator?
                                (.addSeparator root-menu))
-                             (let [ack-btn-entities (create-menu-button-entities-to-ack-alerts-in-group group files)
+                             (let [ack-btn-entities (create-menu-button-entities-to-ack-and-show-alerts-in-group group files)
                                    sys'' (reduce (fn [sys' [btn-id btn-data :as btn-entity]]
                                                    (.add root-menu (:value btn-data))
                                                    (system-core/add-entity sys' btn-entity))
@@ -214,7 +213,7 @@
     ; ... then add the "ack everything button, but only if there is more than one file group
     (if (>= 1 (count files-by-group))
       system
-      (let [ack-all-btn-entity (create-menu-button-entity-to-ack-alerts "Everywhere")
+      (let [ack-all-btn-entity (create-menu-button-entity-to-ack-and-show-alerts "Everywhere")
             [ack-all-btn-id ack-all-btn-data] ack-all-btn-entity
             system-with-ack-all-btn (system-core/add-entity system ack-all-btn-entity)]
         (doto root-menu
@@ -227,7 +226,7 @@
         image (ui-utils/load-image "icon.png")
         tray-icon (TrayIcon. image)
         open-files-menu (Menu. "Open files")
-        ack-alerts-menu (Menu. "Acknowledge alerts")
+        ack-and-show-alerts-menu (Menu. "Acknowledge and show alerts")
         show-status-menu (ui-utils/create-menu-item "Show status" show-status)
         toggle-check-enabled-menu (ui-utils/create-menu-item "Disable file checking" toggle-check-enabled)
         exit-menu (ui-utils/create-menu-item "Exit" exit)
@@ -237,7 +236,7 @@
       )
     (doto popup
       ;(.add open-files-menu)
-      (.add ack-alerts-menu)
+      (.add ack-and-show-alerts-menu)
       (.add show-status-menu)
       (.add toggle-check-enabled-menu)
       (.addSeparator)
@@ -253,7 +252,7 @@
     (swap! system-state/system (fn [sys]
                                  (-> sys
                                      (system-core/add-entity (create-ui-entity :ui-tray-icon tray-icon))
-                                     (create-and-add-menu-buttons-to-ack-alerts! ack-alerts-menu)
+                                     (create-and-add-menu-buttons-to-ack-and-show-alerts! ack-and-show-alerts-menu)
                                      (system-core/add-entity (create-ui-entity :ui-toggle-check-enabled-menu-button toggle-check-enabled-menu)))))))
 
 

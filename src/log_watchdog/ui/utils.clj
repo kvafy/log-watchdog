@@ -58,8 +58,9 @@
 (defn show-error-message [title msg]
   (JOptionPane/showMessageDialog nil msg title JOptionPane/ERROR_MESSAGE))
 
-(defn open-files [& files]
-  (let [desktop (Desktop/getDesktop)]
+(defn open-files [file-entities]
+  (let [files (map (fn [[_ file-data]] (:file file-data)) file-entities)
+        desktop (Desktop/getDesktop)]
     (doseq [file files]
       (.open desktop file))))
 
