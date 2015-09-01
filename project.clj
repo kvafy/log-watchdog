@@ -1,4 +1,4 @@
-(defproject log-watchdog "0.1.5-SNAPSHOT"
+(defproject log-watchdog "0.1.6-SNAPSHOT"
   :description "Watches log files for suspicious lines and notifies when something is found."
   :url "https://github.com/kvafy/log-watchdog"
   :license {:name "Eclipse Public License"
