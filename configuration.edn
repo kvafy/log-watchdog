@@ -23,8 +23,11 @@
 
           ; Optional per-file options
           ; Don't rely of reported file size and last modification timestamp. Check the file always.
+          ; Note: If this override is enabled, consider making the ":check-interval-ms" higher.
           ;:always-check-override true
+
           ; Never try to skip bytes that have (supposedly) been read during the last file check. Read the whole file.
+          ; Note: If this override is enabled, consider making the ":check-interval-ms" higher.
           ;:never-seek-override true
         }
 
@@ -41,7 +44,7 @@
   ; Application-wide options.
 
   ; How often should all the files be checked for new alert lines?
-  :check-interval-ms 5000
+  :check-interval-ms 1000
   ; How often can the app show notification when there are alerts with unacknowledged alerts?
   :nagging-interval-ms 60000
 
