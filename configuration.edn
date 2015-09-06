@@ -33,12 +33,11 @@
 
       ; Configuration of another file to check. This time we are interested also
       ; in WARN-level messages.
-      "test/resources/warns.log"
+      "/home/user/log-watchdog/test/resources/warns.log"
         {
           :line-regex "^(ERROR|WARN).*$"
           :file-group "A"
         }
-
     }
 
 

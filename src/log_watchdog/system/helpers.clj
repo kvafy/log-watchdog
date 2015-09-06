@@ -81,9 +81,6 @@
                                        (unacknowledged-alerts system)
                                        :watched-file-id :watched-file-group-id))
 
-(defn unacknowledged-files [system]
-  (-> system unacknowledged-alerts-by-file keys))
-
 (defn unreadable-files [system]
   (core/query system (core/entity-pred :type (partial = :watched-file)
                                        :last-check-failed true?)))

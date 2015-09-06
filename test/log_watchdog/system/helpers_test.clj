@@ -26,11 +26,6 @@
         unacked-alert-ids (map first unacked-alerts)]
     (is (= #{alert1-id alert4-id} (set unacked-alert-ids)))))
 
-(deftest unacknowledged-files-test
-  (let [unacked-files (helpers/unacknowledged-files system-orig)
-        unacked-file-ids (map first unacked-files)]
-    (is (= #{file1-id file2-id} (set unacked-file-ids)))))
-
 (deftest unreadable-files-test
   (let [unreadable-files (helpers/unreadable-files system-orig)
         unreadable-file-ids (map first unreadable-files)]
